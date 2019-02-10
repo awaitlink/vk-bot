@@ -270,10 +270,10 @@ impl Core {
     /// [`Handler`] to do so.
     pub fn handle(&self, req: &CallbackAPIRequest, vk_token: &str) {
         debug!("handling {:#?}", req);
-        self.handle_event(req.r#type().into(), vk_token, Some(req));
+        self.handle_event(req.r#type().into(), vk_token, req);
     }
 
-    fn handle_event(&self, event: Event, vk_token: &str, req: Option<&CallbackAPIRequest>) {
+    fn handle_event(&self, event: Event, vk_token: &str, req: &CallbackAPIRequest) {
         //        match event {
         //            Event::MessageNew => self.handle_message_new(ctx),
         //            _ => {},
