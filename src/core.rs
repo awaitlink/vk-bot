@@ -1,30 +1,87 @@
-//! The [`Core`] struct and handler/tester types.
+//! The [`Core`] struct, supported [`Event`][crate::core::Event]s, and handler/tester types.
 
 use crate::context::Context;
 use crate::request::CallbackAPIRequest;
 use log::{debug, error, info, trace, warn};
-use std::collections::{hash_map::Entry, HashMap};
-use std::fmt::{Debug, Error, Formatter};
+use std::collections::{
+    hash_map::{Entry, OccupiedEntry},
+    HashMap,
+};
+use std::fmt::{Debug, Display, Error, Formatter};
 use std::sync::Arc;
 
-/// Events that are supported by event handlers.
-pub const SUPPORTED_EVENTS: [&'static str; 10] = [
-    // Callback API
-    "message_new",
-    "message_reply",
-    "message_edit",
-    "message_typing_state",
-    "message_allow",
-    "message_deny",
-    // Detected when parsing 'message_new' event
-    "start",
-    "service_action",
-    // Internal events
-    "no_match",
-    "handler_error",
-];
+/// Events that are supported for event handlers.
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum Event {
+    /// Callback API: `message_new`.
+    MessageNew,
+    /// Callback API: `message_reply`.
+    MessageReply,
+    /// Callback API: `message_edit`.
+    MessageEdit,
+    /// Callback API: `message_typing_state`.
+    MessageTypingState,
+    /// Callback API: `message_allow`.
+    MessageAllow,
+    /// Callback API: `message_deny`.
+    MessageDeny,
 
-/// Inner type of [`Handler`]
+    /// Generated instead of [`Event::MessageNew`] when
+    /// start button was pressed.
+    Start,
+    /// Generated instead of [`Event::MessageNew`] when
+    /// the message is a service action message.
+    ServiceAction,
+
+    /// Generated when no matching handler for an event
+    /// is found.
+    NoMatch,
+    // TODO: HandlerError event?
+}
+
+impl Display for Event {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        f.write_str(match self {
+            Event::MessageNew => "message_new",
+            Event::MessageReply => "message_reply",
+            Event::MessageEdit => "message_edit",
+            Event::MessageTypingState => "message_typing_state",
+            Event::MessageAllow => "message_allow",
+            Event::MessageDeny => "message_deny",
+
+            Event::Start => "start",
+            Event::ServiceAction => "service_action",
+
+            Event::NoMatch => "no_match",
+        })
+    }
+}
+
+impl From<String> for Event {
+    /// Converts a String into the associated event.
+    ///
+    /// # Panics
+    /// - when given unknown event
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "message_new" => Event::MessageNew,
+            "message_reply" => Event::MessageReply,
+            "message_edit" => Event::MessageEdit,
+            "message_typing_state" => Event::MessageTypingState,
+            "message_allow" => Event::MessageAllow,
+            "message_deny" => Event::MessageDeny,
+
+            "start" => Event::Start,
+            "service_action" => Event::ServiceAction,
+
+            "no_match" => Event::NoMatch,
+
+            _ => panic!("unknown event: `{}`", s),
+        }
+    }
+}
+
+/// Inner type of [`Handler`].
 pub type HandlerInner = Arc<dyn (Fn(&mut Context) -> &mut Context) + Send + Sync + 'static>;
 
 /// Handler's [`Fn`] should handle the message/event using the
@@ -60,7 +117,7 @@ impl Debug for Handler {
     }
 }
 
-/// Inner type of [`Tester`]
+/// Inner type of [`Tester`].
 pub type TesterInner = Arc<dyn (Fn(&String) -> bool) + Send + Sync + 'static>;
 
 /// Tester's [`Fn`] should return whether a stringified JSON is
@@ -99,7 +156,7 @@ impl Debug for Tester {
 #[derive(Debug, Clone)]
 pub struct Core {
     cmd_prefix: Option<String>,
-    event_handlers: HashMap<String, Handler>,
+    event_handlers: HashMap<Event, Handler>,
     static_payload_handlers: HashMap<String, Handler>,
     dyn_payload_handlers: Vec<(Tester, Handler)>,
     command_handlers: HashMap<String, Handler>,
@@ -107,7 +164,7 @@ pub struct Core {
 }
 
 impl Core {
-    /// Creates a new effectively empty [`Core`].
+    /// Creates a new [`Core`].
     pub fn new() -> Self {
         Self {
             cmd_prefix: None,
@@ -129,24 +186,26 @@ impl Core {
     /// Adds a new event handler to this [`Core`], consuming
     /// `mut self` and returning it after the modification.
     ///
-    /// See also [`SUPPORTED_EVENTS`].
-    pub fn on(mut self, event: &str, handler: Handler) -> Self {
+    /// Handler for the `message_new` event is built-in,
+    /// and is not changeable.
+    ///
+    /// See also [`Event`].
+    pub fn on(mut self, event: Event, handler: Handler) -> Self {
         let entry = self.event_handlers.entry(event.into());
-        match entry {
-            Entry::Occupied(_) => {
-                panic!("attempt to set up duplicate handler for event `{}`", event);
-            }
-            Entry::Vacant(e) => {
-                if SUPPORTED_EVENTS.contains(&event) {
-                    e.insert(handler);
-                } else {
-                    panic!(
-                        "attempt to set up handler for unsupported event `{}`",
-                        event
-                    );
-                };
-            }
-        };
+
+        match event {
+            Event::MessageNew => panic!(
+                "attempt to set up handler for `{}`, \
+                 which is defined internally and should not be replaced",
+                Event::MessageNew
+            ),
+            _ => match entry {
+                Entry::Occupied(entry) => {
+                    panic!("attempt to set up duplicate handler for event `{}`", event)
+                }
+                Entry::Vacant(entry) => entry.insert(handler),
+            },
+        }
 
         self
     }
@@ -162,7 +221,7 @@ impl Core {
                 "attempt to set up duplicate handler for payload {:#?}",
                 payload
             ),
-            Entry::Vacant(e) => e.insert(handler),
+            Entry::Vacant(entry) => entry.insert(handler),
         };
 
         self
@@ -187,7 +246,7 @@ impl Core {
             Entry::Occupied(_) => {
                 panic!("attempt to set up duplicate handler for command `{}`", cmd);
             }
-            Entry::Vacant(e) => e.insert(handler),
+            Entry::Vacant(entry) => entry.insert(handler),
         };
 
         self
@@ -201,7 +260,7 @@ impl Core {
             Entry::Occupied(_) => {
                 panic!("attempt to set up duplicate handler for regex {:#?}", regex);
             }
-            Entry::Vacant(e) => e.insert(handler),
+            Entry::Vacant(entry) => entry.insert(handler),
         };
 
         self
@@ -211,6 +270,19 @@ impl Core {
     /// [`Handler`] to do so.
     pub fn handle(&self, req: &CallbackAPIRequest, vk_token: &str) {
         debug!("handling {:#?}", req);
-        unimplemented!()
+        self.handle_event(req.r#type().into(), vk_token, Some(req));
+    }
+
+    fn handle_event(&self, event: Event, vk_token: &str, req: Option<&CallbackAPIRequest>) {
+        //        match event {
+        //            Event::MessageNew => self.handle_message_new(ctx),
+        //            _ => {},
+        //        };
+        unimplemented!();
+    }
+
+    fn handle_message_new<'a>(&self, ctx: &'a mut Context) -> &'a mut Context {
+        unimplemented!();
+        ctx
     }
 }
