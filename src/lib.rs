@@ -8,7 +8,7 @@ extern crate rocket;
 
 pub use crate::bot::Bot;
 pub use crate::context::Context;
-pub use crate::core::{Core, Handler, Tester};
+pub use crate::core::{Core, Event, Handler, Tester};
 
 pub mod bot;
 pub mod context;

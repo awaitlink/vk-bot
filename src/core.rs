@@ -57,13 +57,13 @@ impl Display for Event {
     }
 }
 
-impl From<String> for Event {
-    /// Converts a String into the associated event.
+impl From<&str> for Event {
+    /// Converts a `&`[`str`] into the associated event.
     ///
     /// # Panics
     /// - when given unknown event
-    fn from(s: String) -> Self {
-        match s.as_str() {
+    fn from(s: &str) -> Self {
+        match s {
             "message_new" => Event::MessageNew,
             "message_reply" => Event::MessageReply,
             "message_edit" => Event::MessageEdit,
@@ -78,6 +78,16 @@ impl From<String> for Event {
 
             _ => panic!("unknown event: `{}`", s),
         }
+    }
+}
+
+impl From<String> for Event {
+    /// Converts a [`String`] into the associated event.
+    ///
+    /// # Panics
+    /// - when given unknown event
+    fn from(s: String) -> Self {
+        s.as_str().into()
     }
 }
 
@@ -203,7 +213,7 @@ impl Core {
                 Entry::Occupied(entry) => {
                     panic!("attempt to set up duplicate handler for event `{}`", event)
                 }
-                Entry::Vacant(entry) => entry.insert(handler),
+                Entry::Vacant(entry) => {entry.insert(handler);},
             },
         }
 
