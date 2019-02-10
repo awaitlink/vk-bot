@@ -209,7 +209,7 @@ impl Core {
 
     /// Handles a request by telling the appropriate
     /// [`Handler`] to do so.
-    pub fn handle(&self, req: &CallbackAPIRequest) {
+    pub fn handle(&self, req: &CallbackAPIRequest, vk_token: &str) {
         debug!("handling {:#?}", req);
         unimplemented!()
     }

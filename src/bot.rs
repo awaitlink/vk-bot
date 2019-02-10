@@ -43,9 +43,9 @@ impl Bot {
         }
     }
 
-    /// Alias for `self.core.handle(req)`.
+    /// Alias for `self.core.handle(req, self.vk_token())`.
     pub fn handle(&self, req: &CallbackAPIRequest) {
-        self.core.handle(req);
+        self.core.handle(req, self.vk_token());
     }
 
     /// Starts this [`Bot`], consuming `self`.
