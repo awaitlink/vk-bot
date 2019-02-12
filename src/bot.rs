@@ -1,20 +1,23 @@
 //! The [`Bot`] struct and server listener setup.
 
-use crate::core::Core;
-use crate::request::CallbackAPIRequest;
+use crate::{core::Core, request::CallbackAPIRequest};
 use log::{debug, error, info, trace, warn};
-use rocket::config::{Config, Environment};
-use rocket::http::Status;
-use rocket::State;
+use rocket::{
+    config::{Config, Environment},
+    http::Status,
+    State,
+};
 use rocket_contrib::json::Json;
+use rvk::APIClient;
+use std::sync::{Arc, Mutex};
 
 /// The string `ok` which needs to be sent in response to every Callback API request.
 const VK_OK: &'static str = "ok";
 
-/// [`Bot`] represents a chat bot, and hands received requests to [`Core`]
+/// [`Bot`] represents a chat bot, and hands received requests to [`Core`].
 #[derive(Debug, Clone)]
 pub struct Bot {
-    vk_token: String,
+    api: Arc<Mutex<APIClient>>,
     confirmation_token: String,
     group_id: i32,
     secret: String,
@@ -34,7 +37,7 @@ impl Bot {
         core: Core,
     ) -> Self {
         Self {
-            vk_token: vk_token.into(),
+            api: Arc::new(Mutex::new(APIClient::new(vk_token.into()))),
             confirmation_token: confirmation_token.into(),
             group_id,
             secret: secret.into(),
@@ -45,7 +48,7 @@ impl Bot {
 
     /// Alias for `self.core.handle(req, self.vk_token())`.
     pub fn handle(&self, req: &CallbackAPIRequest) {
-        self.core.handle(req, self.vk_token());
+        self.core.handle(req, self.api());
     }
 
     /// Starts this [`Bot`], consuming `self`.
@@ -65,9 +68,9 @@ impl Bot {
         .launch();
     }
 
-    /// Returns the VK token stored in this [`Bot`].
-    pub fn vk_token(&self) -> &String {
-        &self.vk_token
+    /// Returns the [`rvk::APIClient`] stored in this [`Bot`].
+    pub fn api(&self) -> Arc<Mutex<APIClient>> {
+        Arc::clone(&self.api)
     }
 
     /// Returns the confirmation token stored in this [`Bot`].
@@ -86,7 +89,7 @@ impl Bot {
     }
 }
 
-/// Handles `GET` requests by returning [`rocket::http::Status::MethodNotAllowed`]
+/// Handles `GET` requests by returning [`rocket::http::Status::MethodNotAllowed`].
 #[get("/")]
 fn get() -> Status {
     debug!("received a GET request");

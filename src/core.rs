@@ -1,14 +1,11 @@
 //! The [`Core`] struct, supported [`Event`][crate::core::Event]s, and handler/tester types.
 
-use crate::context::Context;
-use crate::request::CallbackAPIRequest;
+use crate::{context::Context, request::CallbackAPIRequest};
 use log::{debug, error, info, trace, warn};
-use std::collections::{
-    hash_map::{Entry, OccupiedEntry},
-    HashMap,
-};
+use rvk::APIClient;
+use std::collections::{hash_map::Entry, HashMap};
 use std::fmt::{Debug, Display, Error, Formatter};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// Events that are supported for event handlers.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -173,9 +170,8 @@ pub struct Core {
     regex_handlers: HashMap<String, Handler>,
 }
 
-impl Core {
-    /// Creates a new [`Core`].
-    pub fn new() -> Self {
+impl Default for Core {
+    fn default() -> Self {
         Self {
             cmd_prefix: None,
             event_handlers: Default::default(),
@@ -184,6 +180,13 @@ impl Core {
             command_handlers: Default::default(),
             regex_handlers: Default::default(),
         }
+    }
+}
+
+impl Core {
+    /// Creates a new [`Core`].
+    pub fn new() -> Self {
+        Default::default()
     }
 
     /// Modifies this [`Core`]'s command prefix, consuming
@@ -210,10 +213,12 @@ impl Core {
                 Event::MessageNew
             ),
             _ => match entry {
-                Entry::Occupied(entry) => {
+                Entry::Occupied(_) => {
                     panic!("attempt to set up duplicate handler for event `{}`", event)
                 }
-                Entry::Vacant(entry) => {entry.insert(handler);},
+                Entry::Vacant(entry) => {
+                    entry.insert(handler);
+                }
             },
         }
 
@@ -278,17 +283,18 @@ impl Core {
 
     /// Handles a request by telling the appropriate
     /// [`Handler`] to do so.
-    pub fn handle(&self, req: &CallbackAPIRequest, vk_token: &str) {
+    pub fn handle(&self, req: &CallbackAPIRequest, api: Arc<Mutex<APIClient>>) {
         debug!("handling {:#?}", req);
-        self.handle_event(req.r#type().into(), vk_token, req);
+        self.handle_event(req.r#type().into(), api, req);
     }
 
-    fn handle_event(&self, event: Event, vk_token: &str, req: &CallbackAPIRequest) {
-        //        match event {
-        //            Event::MessageNew => self.handle_message_new(ctx),
-        //            _ => {},
-        //        };
-        unimplemented!();
+    fn handle_event(&self, event: Event, api: Arc<Mutex<APIClient>>, req: &CallbackAPIRequest) {
+        let mut ctx = Context::new(event, req.object().clone(), api);
+
+        match event {
+            Event::MessageNew => self.handle_message_new(&mut ctx),
+            _ => unimplemented!(),
+        };
     }
 
     fn handle_message_new<'a>(&self, ctx: &'a mut Context) -> &'a mut Context {

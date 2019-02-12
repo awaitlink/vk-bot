@@ -1,7 +1,6 @@
 //! Various structs for storing request information.
 
-use rvk::objects::message::Message;
-use rvk::objects::Integer;
+use rvk::objects::{message::Message, Integer};
 use serde_derive::Deserialize;
 
 /// A request received from Callback API.
@@ -15,29 +14,29 @@ pub struct CallbackAPIRequest {
 }
 
 impl CallbackAPIRequest {
-    /// Returns the secret associated with this [`CallbackAPIRequest`].
+    /// Returns the secret sent in this request.
     pub fn secret(&self) -> &str {
         &self.secret
     }
 
-    /// Returns the group ID associated with this [`CallbackAPIRequest`].
+    /// Returns the group ID sent in this request.
     pub fn group_id(&self) -> i32 {
         self.group_id
     }
 
-    /// Returns the type associated with this [`CallbackAPIRequest`].
+    /// Returns the type of this request.
     pub fn r#type(&self) -> &str {
         &self.r#type
     }
 
-    /// Returns the [`Object`] associated with this [`CallbackAPIRequest`].
+    /// Returns the [`Object`] sent in this request.
     pub fn object(&self) -> &Object {
         &self.object
     }
 }
 
 /// An object of a [`CallbackAPIRequest`].
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Object {
     #[serde(flatten)]
     message: Option<Message>,
