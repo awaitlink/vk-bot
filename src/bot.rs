@@ -11,7 +11,8 @@ use rocket_contrib::json::Json;
 use rvk::APIClient;
 use std::sync::{Arc, Mutex};
 
-/// The string `ok` which needs to be sent in response to every Callback API request.
+/// The string `ok` which needs to be sent in response to every Callback API
+/// request.
 const VK_OK: &'static str = "ok";
 
 /// [`Bot`] represents a chat bot, and hands received requests to [`Core`].
@@ -89,7 +90,8 @@ impl Bot {
     }
 }
 
-/// Handles `GET` requests by returning [`rocket::http::Status::MethodNotAllowed`].
+/// Handles `GET` requests by returning
+/// [`rocket::http::Status::MethodNotAllowed`].
 #[get("/")]
 fn get() -> Status {
     debug!("received a GET request");
@@ -97,8 +99,8 @@ fn get() -> Status {
 }
 
 /// Handles `POST` requests by first checking that secret and group ID are
-/// correct, and then responds with either confirmation token (if that is
-/// what was requested) or [`VK_OK`] in the other case.
+/// correct, and then responds with either confirmation token (if that is what
+/// was requested) or [`VK_OK`] in the other case.
 #[post("/", format = "json", data = "<data>")]
 fn post(data: Json<CallbackAPIRequest>, state: State<Bot>) -> Result<String, Status> {
     let bot = &*state;

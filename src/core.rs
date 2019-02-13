@@ -1,4 +1,5 @@
-//! The [`Core`] struct, supported [`Event`][crate::core::Event]s, and handler/tester types.
+//! The [`Core`] struct, supported [`Event`][crate::core::Event]s, and
+//! handler/tester types.
 
 use crate::{context::Context, request::CallbackAPIRequest};
 use log::{debug, error, info, trace, warn};
@@ -23,15 +24,14 @@ pub enum Event {
     /// Callback API: `message_deny`.
     MessageDeny,
 
-    /// Generated instead of [`Event::MessageNew`] when
-    /// start button was pressed.
+    /// Generated instead of [`Event::MessageNew`] when start button was
+    /// pressed.
     Start,
-    /// Generated instead of [`Event::MessageNew`] when
-    /// the message is a service action message.
+    /// Generated instead of [`Event::MessageNew`] when the message is a service
+    /// action message.
     ServiceAction,
 
-    /// Generated when no matching handler for an event
-    /// is found.
+    /// Generated when no matching handler for an event is found.
     NoMatch,
     // TODO: HandlerError event?
 }
@@ -91,11 +91,11 @@ impl From<String> for Event {
 /// Inner type of [`Handler`].
 pub type HandlerInner = Arc<dyn (Fn(&mut Context) -> &mut Context) + Send + Sync + 'static>;
 
-/// Handler's [`Fn`] should handle the message/event using the
-/// given `&mut` [`Context`], and return it back when finished.
+/// Handler's [`Fn`] should handle the message/event using the given `&mut`
+/// [`Context`], and return it back when finished.
 ///
-/// This is a wrapper around `Arc<dyn (Fn(&mut Context) -> &mut Context) + ...>`
-/// to provide a [`Debug`] impl needed by [`HashMap`].
+/// This is essentially a wrapper around `Arc<dyn (Fn(&mut Context) -> &mut
+/// Context) + ...>`.
 #[derive(Clone)]
 pub struct Handler {
     inner: HandlerInner,
@@ -127,10 +127,10 @@ impl Debug for Handler {
 /// Inner type of [`Tester`].
 pub type TesterInner = Arc<dyn (Fn(&String) -> bool) + Send + Sync + 'static>;
 
-/// Tester's [`Fn`] should return whether a stringified JSON is
-/// interesting for a handler to handle.
+/// Tester's [`Fn`] should return whether a stringified JSON is interesting for
+/// a handler to handle.
 ///
-/// This is a wrapper around `Arc<dyn (Fn(&String) -> bool) + ...>`.
+/// This is essentially a wrapper around `Arc<dyn (Fn(&String) -> bool) + ...>`.
 #[derive(Clone)]
 pub struct Tester {
     inner: TesterInner,
@@ -160,6 +160,9 @@ impl Debug for Tester {
 }
 
 /// [`Core`] accepts user-defined handlers, and invokes them when needed.
+///
+/// All methods are chain-callable: they consume `mut self` and return it after
+/// the modification.
 #[derive(Debug, Clone)]
 pub struct Core {
     cmd_prefix: Option<String>,
@@ -189,18 +192,15 @@ impl Core {
         Default::default()
     }
 
-    /// Modifies this [`Core`]'s command prefix, consuming
-    /// `mut self` and returning it after the modification.
+    /// Modifies this [`Core`]'s command prefix.
     pub fn with_cmd_prefix(mut self, cmd_prefix: &str) -> Self {
         self.cmd_prefix = Some(cmd_prefix.into());
         self
     }
 
-    /// Adds a new event handler to this [`Core`], consuming
-    /// `mut self` and returning it after the modification.
+    /// Adds a new event handler to this [`Core`].
     ///
-    /// Handler for the `message_new` event is built-in,
-    /// and is not changeable.
+    /// Handler for the `message_new` event is built-in, and is not changeable.
     ///
     /// See also [`Event`].
     pub fn on(mut self, event: Event, handler: Handler) -> Self {
@@ -225,8 +225,7 @@ impl Core {
         self
     }
 
-    /// Adds a new payload handler to this [`Core`], consuming
-    /// `mut self` and returning it after the modification.
+    /// Adds a new payload handler to this [`Core`].
     ///
     /// See also [`Core::dyn_payload`].
     pub fn payload(mut self, payload: &'static str, handler: Handler) -> Self {
@@ -242,9 +241,8 @@ impl Core {
         self
     }
 
-    /// Adds a new dynamic (provided a [`Tester`]) payload handler
-    /// to this [`Core`], consuming `mut self` and returning it after
-    /// the modification.
+    /// Adds a new dynamic (provided a [`Tester`]) payload handler to this
+    /// [`Core`].
     ///
     /// See also [`Core::payload`].
     pub fn dyn_payload(mut self, tester: Tester, handler: Handler) -> Self {
@@ -252,9 +250,8 @@ impl Core {
         self
     }
 
-    /// Adds a new command (exact string after command prefix)
-    /// handler to this [`Core`], consuming `mut self` and
-    /// returning it after the modification.
+    /// Adds a new command (exact string after command prefix) handler to this
+    /// [`Core`].
     pub fn cmd(mut self, cmd: &'static str, handler: Handler) -> Self {
         let entry = self.command_handlers.entry(cmd.into());
         match entry {
@@ -267,8 +264,7 @@ impl Core {
         self
     }
 
-    /// Adds a new regex handler to this [`Core`], consuming
-    /// `mut self` and returning it after the modification.
+    /// Adds a new regex handler to this [`Core`].
     pub fn regex(mut self, regex: String, handler: Handler) -> Self {
         let entry = self.regex_handlers.entry(regex.clone());
         match entry {
@@ -281,8 +277,7 @@ impl Core {
         self
     }
 
-    /// Handles a request by telling the appropriate
-    /// [`Handler`] to do so.
+    /// Handles a request by telling the appropriate [`Handler`] to do so.
     pub fn handle(&self, req: &CallbackAPIRequest, api: Arc<Mutex<APIClient>>) {
         debug!("handling {:#?}", req);
         self.handle_event(req.r#type().into(), api, req);
