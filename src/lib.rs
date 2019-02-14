@@ -15,4 +15,6 @@ pub use crate::{
 pub mod bot;
 pub mod context;
 pub mod core;
+pub mod keyboard;
 pub mod request;
+pub mod response;

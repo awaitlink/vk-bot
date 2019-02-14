@@ -1,4 +1,4 @@
-//! Various structs for storing request information.
+//! Structs for storing request information.
 
 use rvk::objects::{message::Message, Integer};
 use serde_derive::Deserialize;

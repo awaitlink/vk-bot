@@ -1,6 +1,6 @@
-//! The [`Context`] and [`Response`] structs.
+//! The [`Context`] struct.
 
-use crate::{core::Event, request::Object};
+use crate::{core::Event, request::Object, response::Response};
 use rvk::APIClient;
 use std::sync::{Arc, Mutex};
 
@@ -44,24 +44,5 @@ impl Context {
     /// Returns the current pending response object.
     pub fn response(&mut self) -> &mut Response {
         &mut self.response
-    }
-}
-
-/// Manages the bot's current response to a message/event
-#[derive(Debug)]
-pub struct Response {
-    // TODO
-}
-
-impl Default for Response {
-    fn default() -> Self {
-        Self {}
-    }
-}
-
-impl Response {
-    /// Creates a new [`Response`].
-    pub fn new() -> Self {
-        Default::default()
     }
 }

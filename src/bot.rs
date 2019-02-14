@@ -1,4 +1,4 @@
-//! The [`Bot`] struct and server listener setup.
+//! The [`Bot`] struct and server setup.
 
 use crate::{core::Core, request::CallbackAPIRequest};
 use log::{debug, error, info, trace, warn};
