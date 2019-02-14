@@ -89,13 +89,12 @@ impl From<String> for Event {
 }
 
 /// Inner type of [`Handler`].
-pub type HandlerInner = Arc<dyn (Fn(&mut Context) -> &mut Context) + Send + Sync + 'static>;
+pub type HandlerInner = Arc<dyn Fn(&mut Context) + Send + Sync + 'static>;
 
 /// Handler's [`Fn`] should handle the message/event using the given `&mut`
 /// [`Context`], and return it back when finished.
 ///
-/// This is essentially a wrapper around `Arc<dyn (Fn(&mut Context) -> &mut
-/// Context) + ...>`.
+/// This is essentially a wrapper around `Arc<dyn Fn(&mut Context) + ...>`.
 #[derive(Clone)]
 pub struct Handler {
     inner: HandlerInner,
@@ -105,7 +104,7 @@ impl Handler {
     /// Creates a new wrapper.
     pub fn new<F>(handler: F) -> Self
     where
-        F: (Fn(&mut Context) -> &mut Context) + Send + Sync + 'static,
+        F: Fn(&mut Context) + Send + Sync + 'static,
     {
         Self {
             inner: Arc::new(handler),
@@ -292,8 +291,7 @@ impl Core {
         };
     }
 
-    fn handle_message_new<'a>(&self, ctx: &'a mut Context) -> &'a mut Context {
+    fn handle_message_new(&self, ctx: &mut Context) {
         unimplemented!();
-        ctx
     }
 }

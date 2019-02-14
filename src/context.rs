@@ -4,10 +4,9 @@ use crate::{core::Event, request::Object};
 use rvk::APIClient;
 use std::sync::{Arc, Mutex};
 
-/// Stores information necessary for handlers, manages the state of the bot's
-/// current response to the message/event this [`Context`] is associated with,
-/// and provides convenient ways for modifying that state as well as sending the
-/// resulting message.
+/// Stores information necessary for handlers, manages the bot's current
+/// response to the message/event it is associated with, and provides convenient
+/// ways for modifying that as well as sending the resulting message.
 #[derive(Debug)]
 pub struct Context {
     event: Event,
