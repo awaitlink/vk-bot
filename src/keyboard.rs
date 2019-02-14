@@ -6,12 +6,12 @@
 //! Keyboard::new(
 //!     vec![
 //!         vec![
-//!             Button::new("A", Color::Primary, "\"some\"".into()),
-//!             Button::new("B", Color::Default, "\"payload\"".into()),
+//!             Button::new("A", Color::Primary, None),
+//!             Button::new("B", Color::Default, None),
 //!         ],
 //!         vec![
-//!             Button::new("C", Color::Positive, "\"here\"".into()),
-//!             Button::new("D", Color::Negative, "{\"json\": true}".into()),
+//!             Button::new("C", Color::Positive, None),
+//!             Button::new("D", Color::Negative, Some("{\"payload\": \"json\"}".into())),
 //!         ],
 //!     ],
 //!     false,
@@ -76,7 +76,7 @@ impl Default for Button {
 
 impl Button {
     /// Creates a new button.
-    pub fn new(label: &str, color: Color, payload: String) -> Self {
+    pub fn new(label: &str, color: Color, payload: Option<String>) -> Self {
         Self {
             color,
             action: ButtonAction {
@@ -93,7 +93,8 @@ impl Button {
 pub struct ButtonAction {
     r#type: String,
     label: String,
-    payload: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payload: Option<String>,
 }
 
 impl Default for ButtonAction {
@@ -101,13 +102,14 @@ impl Default for ButtonAction {
         Self {
             r#type: "text".into(),
             label: "Button".into(),
-            payload: "".into(),
+            payload: None,
         }
     }
 }
 
 /// The color of a button.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Color {
     /// `primary` color.
     Primary,
@@ -160,5 +162,64 @@ impl From<String> for Color {
     /// - when given unknown color
     fn from(s: String) -> Self {
         s.as_str().into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn empty_keyboard() -> Result<(), serde_json::Error> {
+        let kbd = Keyboard::new(vec![], false);
+
+        assert_eq!(
+            serde_json::to_value(&kbd)?,
+            json!({
+                  "one_time": false,
+                  "buttons": [],
+            })
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn keyboard() -> Result<(), serde_json::Error> {
+        let payload = serde_json::to_string(&json!({"payload": "json"}))?;
+
+        let kbd = Keyboard::new(
+            vec![
+                vec![
+                    Button::new("1", Color::Default, None),
+                    Button::new("2", Color::Primary, Some(payload.clone())),
+                ],
+                vec![
+                    Button::new("3", Color::Negative, None),
+                    Button::new("4", Color::Positive, None),
+                ],
+            ],
+            true,
+        );
+
+        assert_eq!(
+            serde_json::to_value(&kbd)?,
+            json!({
+                "buttons":[
+                    [
+                        {"color":"default","action":{"type":"text","label":"1"}},
+                        {"color":"primary","action":{"type":"text","label":"2","payload":payload}}
+                    ],
+                    [
+                        {"color":"negative","action":{"type":"text","label":"3"}},
+                        {"color":"positive","action":{"type":"text","label":"4"}}
+                    ]
+                ],
+                "one_time":true
+            })
+        );
+
+        Ok(())
     }
 }
