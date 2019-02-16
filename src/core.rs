@@ -133,8 +133,10 @@ impl Debug for Handler {
 /// Inner type of [`Tester`].
 pub type TesterInner = Arc<dyn (Fn(&String) -> bool) + Send + Sync + 'static>;
 
-/// Tester's [`Fn`] should return whether a stringified JSON is interesting for
-/// a handler to handle.
+/// Tester's [`Fn`] should return whether a payload string (you to set the
+/// payload in [`Keyboard`][`crate::keyboard::Keyboard`]
+/// [`Button`][`crate::keyboard::Button`]s) is interesting for a handler to
+/// handle.
 ///
 /// This is essentially a wrapper around `Arc<dyn (Fn(&String) -> bool) + ...>`.
 #[derive(Clone)]
