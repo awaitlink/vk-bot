@@ -4,9 +4,13 @@
 use crate::{context::Context, request::CallbackAPIRequest};
 use log::{debug, error, info, trace, warn};
 use rvk::APIClient;
-use std::collections::{hash_map::Entry, HashMap};
-use std::fmt::{Debug, Display, Error, Formatter};
-use std::sync::{Arc, Mutex};
+use serde_json::Value;
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    fmt::{Debug, Display, Error, Formatter},
+    ops::Deref,
+    sync::{Arc, Mutex},
+};
 
 /// Events that are supported for event handlers.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -31,7 +35,8 @@ pub enum Event {
     /// action message.
     ServiceAction,
 
-    /// Generated when no matching handler for an event is found.
+    /// Generated when no matching handler for an event/payload/command/regex is
+    /// found.
     NoMatch,
     // TODO: HandlerError event?
 }
@@ -110,10 +115,12 @@ impl Handler {
             inner: Arc::new(handler),
         }
     }
+}
 
-    /// Returns the wrapped value by cloning the [`Arc`].
-    pub fn inner(&self) -> HandlerInner {
-        Arc::clone(&self.inner)
+impl Deref for Handler {
+    type Target = HandlerInner;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -145,10 +152,12 @@ impl Tester {
             inner: Arc::new(tester),
         }
     }
+}
 
-    /// Returns the wrapped value by cloning the [`Arc`].
-    pub fn inner(&self) -> TesterInner {
-        Arc::clone(&self.inner)
+impl Deref for Tester {
+    type Target = TesterInner;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -192,7 +201,7 @@ impl Core {
     }
 
     /// Modifies this [`Core`]'s command prefix.
-    pub fn with_cmd_prefix(mut self, cmd_prefix: &str) -> Self {
+    pub fn cmd_prefix(mut self, cmd_prefix: &str) -> Self {
         self.cmd_prefix = Some(cmd_prefix.into());
         self
     }
@@ -227,7 +236,7 @@ impl Core {
     /// Adds a new payload handler to this [`Core`].
     ///
     /// See also [`Core::dyn_payload`].
-    pub fn payload(mut self, payload: &'static str, handler: Handler) -> Self {
+    pub fn payload(mut self, payload: &str, handler: Handler) -> Self {
         let entry = self.static_payload_handlers.entry(payload.into());
         match entry {
             Entry::Occupied(_) => panic!(
@@ -251,7 +260,7 @@ impl Core {
 
     /// Adds a new command (exact string after command prefix) handler to this
     /// [`Core`].
-    pub fn cmd(mut self, cmd: &'static str, handler: Handler) -> Self {
+    pub fn cmd(mut self, cmd: &str, handler: Handler) -> Self {
         let entry = self.command_handlers.entry(cmd.into());
         match entry {
             Entry::Occupied(_) => {
@@ -264,11 +273,11 @@ impl Core {
     }
 
     /// Adds a new regex handler to this [`Core`].
-    pub fn regex(mut self, regex: String, handler: Handler) -> Self {
-        let entry = self.regex_handlers.entry(regex.clone());
+    pub fn regex(mut self, regex: &str, handler: Handler) -> Self {
+        let entry = self.regex_handlers.entry(regex.into());
         match entry {
             Entry::Occupied(_) => {
-                panic!("attempt to set up duplicate handler for regex {:#?}", regex);
+                panic!("attempt to set up duplicate handler for regex `{}`", regex);
             }
             Entry::Vacant(entry) => entry.insert(handler),
         };
@@ -278,20 +287,151 @@ impl Core {
 
     /// Handles a request by telling the appropriate [`Handler`] to do so.
     pub fn handle(&self, req: &CallbackAPIRequest, api: Arc<Mutex<APIClient>>) {
-        debug!("handling {:#?}", req);
-        self.handle_event(req.r#type().into(), api, req);
+        trace!("handling {:#?}", req);
+
+        let event: Event = req.r#type().into();
+        let mut ctx = Context::new(event, req.object().clone(), api);
+        self.handle_event(event, &mut ctx);
     }
 
-    fn handle_event(&self, event: Event, api: Arc<Mutex<APIClient>>, req: &CallbackAPIRequest) {
-        let mut ctx = Context::new(event, req.object().clone(), api);
-
+    /// Handles an event.
+    fn handle_event(&self, event: Event, ctx: &mut Context) {
+        debug!("handling event `{}`", event);
         match event {
-            Event::MessageNew => self.handle_message_new(&mut ctx),
-            _ => unimplemented!(),
+            Event::MessageNew => self.handle_message_new(ctx),
+            Event::NoMatch => {
+                if let Some(handler) = self.event_handlers.get(&Event::NoMatch) {
+                    handler(ctx)
+                }
+            }
+            e => match self.event_handlers.get(&e) {
+                Some(handler) => {
+                    trace!("calling `{}` handler for {:#?}", e, ctx);
+                    handler(ctx)
+                }
+                None => self.handle_event(Event::NoMatch, ctx),
+            },
         };
     }
 
+    /// Handles the [`Event::MessageNew`], trying to detect
+    /// [`Event::ServiceAction`] first, and then: [`Core::try_handle_payload`]
+    /// -> [`Core::try_handle_command`] -> [`Core::try_handle_regex`] ->
+    /// [`Event::NoMatch`].
     fn handle_message_new(&self, ctx: &mut Context) {
-        unimplemented!();
+        if let Some(message) = ctx.object().message() {
+            if message.action.is_some() {
+                trace!("calling `service_action` handler for {:#?}", ctx);
+                self.handle_event(Event::ServiceAction, ctx);
+                return;
+            }
+        }
+
+        if !self.try_handle_payload(ctx) {
+            if !self.try_handle_command(ctx) {
+                if !self.try_handle_regex(ctx) {
+                    trace!(
+                        "calling `no_match` (as `message_new` failed to match) handler for {:#?}",
+                        ctx
+                    );
+                    self.handle_event(Event::NoMatch, ctx);
+                }
+            }
+        }
     }
+
+    /// Tries to handle this message using a payload handler. Returns `true` if
+    /// that was successful, `false` otherwise.
+    fn try_handle_payload(&self, ctx: &mut Context) -> bool {
+        let message = match ctx.object().message() {
+            Some(msg) => msg,
+            None => return false,
+        };
+
+        let payload = &message.payload;
+
+        if payload.is_some() {
+            let payload = &payload.clone().unwrap();
+
+            // Handle special payload `{"command": "start"}`
+            if let Ok(payload) = serde_json::from_str::<Value>(payload) {
+                if let Some(object) = payload.as_object() {
+                    if let Some(command) = object.get("command") {
+                        if command == "start" {
+                            self.handle_event(Event::Start, ctx);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // Static payload handlers
+            if let Some(handler) = self.static_payload_handlers.get(payload) {
+                handler(ctx);
+                return true;
+            }
+
+            // So-called "dynamic" payload handlers
+            for (tester, handler) in &self.dyn_payload_handlers {
+                if tester(payload) {
+                    handler(ctx);
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Tries to handle this message using a command handler. Returns `true` if
+    /// that was successful, `false` otherwise.
+    fn try_handle_command(&self, ctx: &mut Context) -> bool {
+        if let Some(message) = ctx.object().message() {
+            if let Some(text) = &message.text {
+                for command in self.command_handlers.keys() {
+                    use regex::{escape, Regex};
+
+                    // TODO: Should match only the bot's group ID instead of all (`\d+`)
+                    let re = Regex::new(&format!(
+                        "^( *\\[club\\d+\\|.*\\])?( *{}{})+",
+                        match &self.cmd_prefix {
+                            Some(prefix) => escape(prefix.as_str()),
+                            None => "".into(),
+                        },
+                        escape(command)
+                    ))
+                    .expect("invalid regex");
+
+                    if re.is_match(&text) {
+                        self.command_handlers[command](ctx);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Tries to handle this message using a regex handler. Returns `true` if
+    /// that was successful, `false` otherwise.
+    fn try_handle_regex(&self, ctx: &mut Context) -> bool {
+        if let Some(message) = ctx.object().message() {
+            if let Some(text) = &message.text {
+                for regex_str in self.regex_handlers.keys() {
+                    use regex::Regex;
+                    let re = Regex::new(&regex_str).expect("invalid regex");
+
+                    if re.is_match(&text) {
+                        self.regex_handlers[regex_str](ctx);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    // TODO: help_message()
 }

@@ -1,6 +1,7 @@
 //! The [`Context`] struct.
 
 use crate::{core::Event, request::Object, response::Response};
+use log::{debug, error, info, trace, warn};
 use rvk::{error::Error, methods::messages, objects::Integer, APIClient, Params};
 use std::sync::{Arc, Mutex};
 
@@ -47,7 +48,8 @@ impl Context {
         }
     }
 
-    /// Returns the event type that caused this handler to run.
+    /// Returns the original Callback API event type that caused this handler to
+    /// run.
     pub fn event(&self) -> Event {
         self.event
     }
@@ -109,6 +111,8 @@ impl Context {
 
         let random_id: i32 = rand::random();
         params.insert("random_id".into(), format!("{}", random_id));
+
+        trace!("sending message {:#?}", params);
 
         messages::send(&*api, params).map(|_| ())
     }
