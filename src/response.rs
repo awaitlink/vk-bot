@@ -27,7 +27,41 @@ impl Response {
         Default::default()
     }
 
-    // TODO
+    /// Returns the attachments of this response.
+    pub fn attachments(&self) -> &Vec<AttachmentInformation> {
+        &self.attachments
+    }
+
+    /// Attaches another attachment to the response.
+    pub fn attach(&mut self, info: AttachmentInformation) {
+        self.attachments.push(info);
+    }
+
+    /// Returns the message of this response.
+    pub fn message(&self) -> &String {
+        &self.message
+    }
+
+    /// Sets a new message text for the response.
+    pub fn set_message(&mut self, msg: &str) {
+        self.message = msg.into();
+    }
+
+    /// Returns the keyboard of this response, if present.
+    pub fn keyboard(&self) -> &Option<Keyboard> {
+        &self.keyboard
+    }
+
+    /// Sets a new keyboard for the response.
+    pub fn set_keyboard(&mut self, kbd: Keyboard) {
+        self.keyboard = Some(kbd);
+    }
+
+    /// Sets an empty keyboard for the response, which will remove the keyboard
+    /// on the user side once this response is sent.
+    pub fn set_keyboard_empty(&mut self) {
+        self.keyboard = Some(Default::default());
+    }
 }
 
 /// Essentially an attachment's unique ID, possibly with an access key.
