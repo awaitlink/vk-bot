@@ -21,8 +21,8 @@ impl Context {
     ///
     /// # Panics
     /// - no user_id on object (only [`Event::MessageAllow`])
-    /// - no message on object (all except [`Event::MessageAllow`])
-    /// - no peer_id on object (all except [`Event::MessageAllow`] and [`Event::MessageTypingState`])
+    /// - no from_id on object ([`Event::MessageTypingState`])
+    /// - no peer_id on object (other events)
     pub fn new(event: Event, object: Object, api: Arc<Mutex<APIClient>>) -> Self {
         let peer_id = match event {
             Event::MessageAllow => object
@@ -30,17 +30,12 @@ impl Context {
                 .expect("no user_id on message_allow object"),
             Event::MessageTypingState => {
                 object
-                    .message()
-                    .clone()
-                    .expect("no message on message_typing_state object")
-                    .from_id
+                    .get_from_id()
+                    .expect("no from_id on message_typing_state object")
             }
             _ => {
                 object
-                    .message()
-                    .clone()
-                    .expect("no message on object")
-                    .peer_id
+                    .peer_id()
                     .expect("no peer_id on object")
             }
         };

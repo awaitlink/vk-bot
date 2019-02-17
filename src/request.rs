@@ -41,6 +41,8 @@ impl CallbackAPIRequest {
 pub struct Object {
     #[serde(flatten)]
     message: Option<Message>,
+    from_id: Option<Integer>,
+    peer_id: Option<Integer>,
     user_id: Option<Integer>,
     key: Option<String>,
 }
@@ -49,6 +51,8 @@ impl Default for Object {
     fn default() -> Self {
         Self {
             message: None,
+            from_id: None,
+            peer_id: None,
             user_id: None,
             key: None,
         }
@@ -59,6 +63,16 @@ impl Object {
     /// Returns the message associated with this [`Object`].
     pub fn message(&self) -> &Option<Message> {
         &self.message
+    }
+
+    /// Returns the "from" ID associated with this [`Object`].
+    pub fn get_from_id(&self) -> &Option<Integer> {
+        &self.from_id
+    }
+
+    /// Returns the peer ID associated with this [`Object`].
+    pub fn peer_id(&self) -> &Option<Integer> {
+        &self.peer_id
     }
 
     /// Returns the user ID associated with this [`Object`].
