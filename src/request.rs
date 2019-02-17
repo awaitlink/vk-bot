@@ -10,6 +10,7 @@ pub struct CallbackAPIRequest {
     group_id: i32,
     #[serde(rename = "type")]
     r#type: String,
+    #[serde(default)]
     object: Object,
 }
 
@@ -42,6 +43,16 @@ pub struct Object {
     message: Option<Message>,
     user_id: Option<Integer>,
     key: Option<String>,
+}
+
+impl Default for Object {
+    fn default() -> Self {
+        Self {
+            message: None,
+            user_id: None,
+            key: None,
+        }
+    }
 }
 
 impl Object {
