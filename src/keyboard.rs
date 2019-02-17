@@ -33,7 +33,7 @@ use std::fmt::{Display, Error, Formatter};
 
 /// A keyboard consisting of [`Button`]s that may be shown to the user instead
 /// of the regular keyboard.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Keyboard {
     buttons: Vec<Vec<Button>>,
     one_time: bool,
@@ -59,7 +59,7 @@ impl Keyboard {
 }
 
 /// A button of a keyboard.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Button {
     color: Color,
     action: ButtonAction,
@@ -89,7 +89,7 @@ impl Button {
 }
 
 /// A [`Button`]'s "action".
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct ButtonAction {
     r#type: String,
     label: String,

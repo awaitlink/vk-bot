@@ -26,9 +26,9 @@ fn main() {
         .cmd_prefix("/")
         .cmd(
             "keyboard",
-            Handler::new(|ctx| {
+            Handler::new(move |ctx| {
                 ctx.response().set_message("Here you go:");
-                ctx.response().set_keyboard(kbd);
+                ctx.response().set_keyboard(kbd.clone());
                 eprintln!("{:#?}", ctx.send());
             }),
         )
