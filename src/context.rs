@@ -18,6 +18,11 @@ pub struct Context {
 
 impl Context {
     /// Creates a new [`Context`].
+    ///
+    /// # Panics
+    /// - no user_id on object (only [`Event::MessageAllow`])
+    /// - no message on object (all except [`Event::MessageAllow`])
+    /// - no peer_id on object (all except [`Event::MessageAllow`] and [`Event::MessageTypingState`])
     pub fn new(event: Event, object: Object, api: Arc<Mutex<APIClient>>) -> Self {
         let peer_id = match event {
             Event::MessageAllow => object
@@ -36,6 +41,7 @@ impl Context {
                     .clone()
                     .expect("no message on object")
                     .peer_id
+                    .expect("no peer_id on object")
             }
         };
 

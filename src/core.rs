@@ -213,6 +213,10 @@ impl Core {
     ///
     /// See [`Event`] for possible events.
     ///
+    /// Be very careful in implementation of [`Event::MessageReply`]. It will be triggered
+    /// for **every message your community admins or the bot sends**, including ones sent
+    /// through an [`Event::MessageReply`] or [`Event::NoMatch`] handler!
+    ///
     /// Handler for the [`Event::MessageNew`] is built-in, not changeable, and works like this:
     ///
     /// \# | cause | action
@@ -223,7 +227,7 @@ impl Core {
     /// 4 | 'dynamic' payload match set up via [`Core::dyn_payload`] | respective handler
     /// 5 | command handlers ([`Core::cmd_prefix`] and [`Core::cmd`]) | respective handler
     /// 6 | regex handlers ([`Core::regex`]) | respective handler
-    /// 7 | - | [`Event::NoMatch`]
+    /// 7 | anything except [`Event::MessageReply`] and [`Event::NoMatch`] | [`Event::NoMatch`]
     pub fn on(mut self, event: Event, handler: Handler) -> Self {
         let entry = self.event_handlers.entry(event.into());
 
@@ -322,7 +326,12 @@ impl Core {
                     trace!("calling `{}` handler for {:#?}", e, ctx);
                     handler(ctx)
                 }
-                None => self.handle_event(Event::NoMatch, ctx),
+                None => match e {
+                    // Prevent infinite loop when Event::MessageReply handler is not present, while
+                    // Event::NoMatch sends a message.
+                    Event::MessageReply => {},
+                    _ => self.handle_event(Event::NoMatch, ctx),
+                }
             },
         };
     }
