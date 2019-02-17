@@ -9,7 +9,7 @@ fn main() {
         // ...that returns a handler!
         Handler::new(move |ctx| {
             ctx.response().set_message(message);
-            eprintln!("{:#?}", ctx.send());
+            eprintln!("{:?}", ctx.send());
         })
     };
 
@@ -29,7 +29,7 @@ fn main() {
             Handler::new(move |ctx| {
                 ctx.response().set_message("Here you go:");
                 ctx.response().set_keyboard(kbd.clone());
-                eprintln!("{:#?}", ctx.send());
+                eprintln!("{:?}", ctx.send());
             }),
         )
         .regex("nice", simple_handler("Thanks!"))

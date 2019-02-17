@@ -329,9 +329,9 @@ impl Core {
                 None => match e {
                     // Prevent infinite loop when Event::MessageReply handler is not present, while
                     // Event::NoMatch sends a message.
-                    Event::MessageReply => {},
+                    Event::MessageReply => {}
                     _ => self.handle_event(Event::NoMatch, ctx),
-                }
+                },
             },
         };
     }
@@ -341,12 +341,10 @@ impl Core {
     /// -> [`Core::try_handle_command`] -> [`Core::try_handle_regex`] ->
     /// [`Event::NoMatch`].
     fn handle_message_new(&self, ctx: &mut Context) {
-        if let Some(message) = ctx.object().message() {
-            if message.action.is_some() {
-                trace!("calling `service_action` handler for {:#?}", ctx);
-                self.handle_event(Event::ServiceAction, ctx);
-                return;
-            }
+        if ctx.object().action().is_some() {
+            trace!("calling `service_action` handler for {:#?}", ctx);
+            self.handle_event(Event::ServiceAction, ctx);
+            return;
         }
 
         if !self.try_handle_payload(ctx) {
@@ -365,40 +363,34 @@ impl Core {
     /// Tries to handle this message using a payload handler. Returns `true` if
     /// that was successful, `false` otherwise.
     fn try_handle_payload(&self, ctx: &mut Context) -> bool {
-        let message = match ctx.object().message() {
-            Some(msg) => msg,
+        let payload = match ctx.object().payload() {
+            Some(payload) => payload,
             None => return false,
         };
 
-        let payload = &message.payload;
-
-        if payload.is_some() {
-            let payload = &payload.clone().unwrap();
-
-            // Handle special payload `{"command": "start"}`
-            if let Ok(payload) = serde_json::from_str::<Value>(payload) {
-                if let Some(object) = payload.as_object() {
-                    if let Some(command) = object.get("command") {
-                        if command == "start" {
-                            self.handle_event(Event::Start, ctx);
-                            return true;
-                        }
+        // Handle special payload `{"command": "start"}`
+        if let Ok(payload) = serde_json::from_str::<Value>(payload) {
+            if let Some(object) = payload.as_object() {
+                if let Some(command) = object.get("command") {
+                    if command == "start" {
+                        self.handle_event(Event::Start, ctx);
+                        return true;
                     }
                 }
             }
+        }
 
-            // Static payload handlers
-            if let Some(handler) = self.static_payload_handlers.get(payload) {
+        // Static payload handlers
+        if let Some(handler) = self.static_payload_handlers.get(payload) {
+            handler(ctx);
+            return true;
+        }
+
+        // So-called "dynamic" payload handlers
+        for (tester, handler) in &self.dyn_payload_handlers {
+            if tester(payload) {
                 handler(ctx);
                 return true;
-            }
-
-            // So-called "dynamic" payload handlers
-            for (tester, handler) in &self.dyn_payload_handlers {
-                if tester(payload) {
-                    handler(ctx);
-                    return true;
-                }
             }
         }
 
@@ -408,26 +400,24 @@ impl Core {
     /// Tries to handle this message using a command handler. Returns `true` if
     /// that was successful, `false` otherwise.
     fn try_handle_command(&self, ctx: &mut Context) -> bool {
-        if let Some(message) = ctx.object().message() {
-            if let Some(text) = &message.text {
-                for command in self.command_handlers.keys() {
-                    use regex::{escape, Regex};
+        if let Some(text) = ctx.object().text() {
+            for command in self.command_handlers.keys() {
+                use regex::{escape, Regex};
 
-                    // TODO: Should match only the bot's group ID instead of all (`\d+`)
-                    let re = Regex::new(&format!(
-                        "^( *\\[club\\d+\\|.*\\])?( *{}{})+",
-                        match &self.cmd_prefix {
-                            Some(prefix) => escape(prefix.as_str()),
-                            None => "".into(),
-                        },
-                        escape(command)
-                    ))
-                    .expect("invalid regex");
+                // TODO: Should match only the bot's group ID instead of all (`\d+`)
+                let re = Regex::new(&format!(
+                    "^( *\\[club\\d+\\|.*\\])?( *{}{})+",
+                    match &self.cmd_prefix {
+                        Some(prefix) => escape(prefix.as_str()),
+                        None => "".into(),
+                    },
+                    escape(command)
+                ))
+                .expect("invalid regex");
 
-                    if re.is_match(&text) {
-                        self.command_handlers[command](ctx);
-                        return true;
-                    }
+                if re.is_match(&text) {
+                    self.command_handlers[command](ctx);
+                    return true;
                 }
             }
         }
@@ -438,16 +428,14 @@ impl Core {
     /// Tries to handle this message using a regex handler. Returns `true` if
     /// that was successful, `false` otherwise.
     fn try_handle_regex(&self, ctx: &mut Context) -> bool {
-        if let Some(message) = ctx.object().message() {
-            if let Some(text) = &message.text {
-                for regex_str in self.regex_handlers.keys() {
-                    use regex::Regex;
-                    let re = Regex::new(&regex_str).expect("invalid regex");
+        if let Some(text) = ctx.object().text() {
+            for regex_str in self.regex_handlers.keys() {
+                use regex::Regex;
+                let re = Regex::new(&regex_str).expect("invalid regex");
 
-                    if re.is_match(&text) {
-                        self.regex_handlers[regex_str](ctx);
-                        return true;
-                    }
+                if re.is_match(&text) {
+                    self.regex_handlers[regex_str](ctx);
+                    return true;
                 }
             }
         }

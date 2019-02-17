@@ -28,16 +28,10 @@ impl Context {
             Event::MessageAllow => object
                 .user_id()
                 .expect("no user_id on message_allow object"),
-            Event::MessageTypingState => {
-                object
-                    .get_from_id()
-                    .expect("no from_id on message_typing_state object")
-            }
-            _ => {
-                object
-                    .peer_id()
-                    .expect("no peer_id on object")
-            }
+            Event::MessageTypingState => object
+                .get_from_id()
+                .expect("no from_id on message_typing_state object"),
+            _ => object.peer_id().expect("no peer_id on object"),
         };
 
         Self {

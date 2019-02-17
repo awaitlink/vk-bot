@@ -1,7 +1,9 @@
 //! Structs for storing request information.
 
-use rvk::objects::{message::Message, Integer};
+use rvk::objects::Integer;
 use serde_derive::Deserialize;
+use serde_json::Value;
+use std::collections::HashMap;
 
 /// A request received from Callback API.
 #[derive(Debug, Deserialize)]
@@ -39,49 +41,64 @@ impl CallbackAPIRequest {
 /// An object of a [`CallbackAPIRequest`].
 #[derive(Debug, Deserialize, Clone)]
 pub struct Object {
-    #[serde(flatten)]
-    message: Option<Message>,
     from_id: Option<Integer>,
     peer_id: Option<Integer>,
     user_id: Option<Integer>,
-    key: Option<String>,
+    text: Option<String>,
+    payload: Option<String>,
+    action: Option<Value>,
+
+    #[serde(flatten)]
+    extra: HashMap<String, Value>,
 }
 
 impl Default for Object {
     fn default() -> Self {
         Self {
-            message: None,
             from_id: None,
             peer_id: None,
             user_id: None,
-            key: None,
+            text: None,
+            payload: None,
+            action: None,
+            extra: Default::default(),
         }
     }
 }
 
 impl Object {
-    /// Returns the message associated with this [`Object`].
-    pub fn message(&self) -> &Option<Message> {
-        &self.message
-    }
-
-    /// Returns the "from" ID associated with this [`Object`].
+    /// Returns the "from" ID of this [`Object`].
     pub fn get_from_id(&self) -> &Option<Integer> {
         &self.from_id
     }
 
-    /// Returns the peer ID associated with this [`Object`].
+    /// Returns the peer ID of this [`Object`].
     pub fn peer_id(&self) -> &Option<Integer> {
         &self.peer_id
     }
 
-    /// Returns the user ID associated with this [`Object`].
+    /// Returns the user ID of this [`Object`].
     pub fn user_id(&self) -> &Option<Integer> {
         &self.user_id
     }
 
-    /// Returns the key associated with this [`Object`].
-    pub fn key(&self) -> &Option<String> {
-        &self.key
+    /// Returns the text of this [`Object`].
+    pub fn text(&self) -> &Option<String> {
+        &self.text
+    }
+
+    /// Returns the payload of this [`Object`].
+    pub fn payload(&self) -> &Option<String> {
+        &self.payload
+    }
+
+    /// Returns the action of this [`Object`].
+    pub fn action(&self) -> &Option<Value> {
+        &self.action
+    }
+
+    /// Returns extra fields of this [`Object`].
+    pub fn extra(&self) -> &HashMap<String, Value> {
+        &self.extra
     }
 }
