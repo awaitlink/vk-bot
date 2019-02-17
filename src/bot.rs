@@ -53,12 +53,15 @@ impl Bot {
     }
 
     /// Starts this [`Bot`], consuming `self`.
-    pub fn start(self) {
+    ///
+    /// # Panics
+    /// - if Rocket was not able to launch.
+    pub fn start(self) -> ! {
         simple_logger::init().unwrap();
 
         info!("starting bot...");
 
-        rocket::custom(
+        let err = rocket::custom(
             Config::build(Environment::Production)
                 .address("127.0.0.1")
                 .port(self.port)
@@ -67,6 +70,8 @@ impl Bot {
         .mount("/", routes![post, get])
         .manage(self)
         .launch();
+
+        panic!("{}", err);
     }
 
     /// Returns the [`rvk::APIClient`] stored in this [`Bot`].

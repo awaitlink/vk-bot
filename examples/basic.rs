@@ -1,31 +1,22 @@
 use vk_bot::{Bot, Core, Event, Handler, Tester};
 
 fn main() {
+    // A simple closure for convenience...
+    let simple_message_handler = |message| {
+        // ...that returns a handler!
+        Handler::new(move |ctx| {
+            ctx.response().set_message(message);
+            eprintln!("{:#?}", ctx.send());
+        })
+    };
+
     let core = Core::new()
         .cmd_prefix("/")
-        .cmd(
-            "info",
-            Handler::new(|ctx| {
-                ctx.response().set_message("I am a VK bot.");
-
-                eprintln!("{:#?}", ctx.send());
-            }),
-        )
-        .regex(
-            "nice",
-            Handler::new(|ctx| {
-                ctx.response().set_message("Thanks!");
-
-                eprintln!("{:#?}", ctx.send());
-            }),
-        )
+        .cmd("info", simple_message_handler("I am a VK bot"))
+        .regex("nice", simple_message_handler("Thanks!"))
         .on(
             Event::NoMatch,
-            Handler::new(|ctx| {
-                ctx.response().set_message("Idk how to respond!");
-
-                eprintln!("{:#?}", ctx.send());
-            }),
+            simple_message_handler("Idk how to respond!"),
         )
         .on(
             Event::Start,
@@ -38,21 +29,20 @@ fn main() {
         )
         .payload(
             r#"{"a":"b"}"#,
-            Handler::new(|ctx| {
-                ctx.response()
-                    .set_message("Received {\"a\": \"b\"} in payload!");
-
-                eprintln!("{:#?}", ctx.send());
-            }),
+            simple_message_handler("Received {\"a\": \"b\"} in payload!"),
         )
         .dyn_payload(
             Tester::new(|_| true), // accept all remaining payloads!
-            Handler::new(|ctx| {
-                ctx.response().set_message("Received a payload!");
-
-                eprintln!("{:#?}", ctx.send());
-            }),
+            simple_message_handler("Received a payload!"),
         );
 
-    Bot::new("", "1", 1, "1", 12345, core).start();
+    Bot::new(
+        "",    // VK token
+        "1",   // Confirmation token
+        1,     // Group ID
+        "1",   // Secret (from Callback API settings)
+        12345, // Port
+        core,
+    )
+    .start();
 }
