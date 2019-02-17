@@ -170,9 +170,10 @@ impl Debug for Tester {
 }
 
 /// [`Core`] accepts user-defined handlers, and invokes them when needed.
+/// Note that only one handler (the first found, according to the
+/// [`Core::on`] docs) is called for a given message.
 ///
-/// All methods are chain-callable: they consume `mut self` and return it after
-/// the modification.
+/// Works like a builder.
 #[derive(Debug, Clone)]
 pub struct Core {
     cmd_prefix: Option<String>,
@@ -210,9 +211,19 @@ impl Core {
 
     /// Adds a new event handler to this [`Core`].
     ///
-    /// Handler for the `message_new` event is built-in, and is not changeable.
+    /// See [`Event`] for possible events.
     ///
-    /// See also [`Event`].
+    /// Handler for the [`Event::MessageNew`] is built-in, not changeable, and works like this:
+    ///
+    /// \# | cause | action
+    /// ---|---|---
+    /// 1 | `action` field on object | [`Event::ServiceAction`]
+    /// 2 | special `{"command": "start"}` payload | [`Event::Start`]
+    /// 3 | exact payload match set up via [`Core::payload`] | respective handler
+    /// 4 | 'dynamic' payload match set up via [`Core::dyn_payload`] | respective handler
+    /// 5 | command handlers ([`Core::cmd_prefix`] and [`Core::cmd`]) | respective handler
+    /// 6 | regex handlers ([`Core::regex`]) | respective handler
+    /// 7 | - | [`Event::NoMatch`]
     pub fn on(mut self, event: Event, handler: Handler) -> Self {
         let entry = self.event_handlers.entry(event.into());
 
@@ -434,6 +445,4 @@ impl Core {
 
         false
     }
-
-    // TODO: help_message()
 }
