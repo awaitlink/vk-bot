@@ -3,6 +3,7 @@ name = "vk-bot"
 version = "0.1.0"
 authors = ["Artem Varaksa <aymfst@gmail.com>"]
 edition = "2018"
+license = "MIT"
 
 [dependencies]
 rocket = "0.4.0"
