@@ -2,7 +2,7 @@
 //! handler/tester types.
 
 use crate::{context::Context, request::CallbackAPIRequest};
-use log::{debug, error, info, trace, warn};
+use log::{debug, trace};
 use rvk::APIClient;
 use serde_json::Value;
 use std::{

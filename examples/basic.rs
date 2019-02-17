@@ -37,11 +37,11 @@ fn main() {
         );
 
     Bot::new(
-        "",    // VK token
-        "1",   // Confirmation token
-        1,     // Group ID
-        "1",   // Secret (from Callback API settings)
-        12345, // Port
+        "your vk token",      // VK token
+        "f123456",            // Confirmation token (from Callback API settings)
+        1,                    // Group ID
+        "very_secure_phrase", // Secret (from Callback API settings)
+        12345,                // Port
         core,
     )
     .start();

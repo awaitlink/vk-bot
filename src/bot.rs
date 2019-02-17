@@ -1,7 +1,7 @@
 //! The [`Bot`] struct and server setup.
 
 use crate::{core::Core, request::CallbackAPIRequest};
-use log::{debug, error, info, trace, warn};
+use log::{debug, info};
 use rocket::{
     config::{Config, Environment},
     http::Status,
@@ -47,7 +47,7 @@ impl Bot {
         }
     }
 
-    /// Alias for `self.core.handle(req, self.vk_token())`.
+    /// Alias for `self.core.handle(req, self.api())`.
     pub fn handle(&self, req: &CallbackAPIRequest) {
         self.core.handle(req, self.api());
     }
@@ -57,8 +57,6 @@ impl Bot {
     /// # Panics
     /// - if Rocket was not able to launch.
     pub fn start(self) -> ! {
-        simple_logger::init().unwrap();
-
         info!("starting bot...");
 
         let err = rocket::custom(
