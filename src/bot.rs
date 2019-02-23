@@ -108,17 +108,71 @@ fn get() -> Status {
 fn post(data: Json<CallbackAPIRequest>, state: State<Bot>) -> Result<String, Status> {
     let bot = &*state;
 
-    if data.secret() != bot.secret() {
-        debug!("received a POST request with invalid `secret`");
-        Err(Status::BadRequest)
-    } else if data.group_id() != bot.group_id() {
-        debug!("received a POST request with invalid `group_id`");
-        Err(Status::BadRequest)
-    } else if data.r#type() == "confirmation" {
-        debug!("responded with confirmation token");
-        Ok(bot.confirmation_token().clone())
-    } else {
-        bot.handle(&data);
-        Ok(VK_OK.into())
+    match &data {
+        x if x.secret() != bot.secret() => {
+            debug!("received a POST request with invalid `secret`");
+            Err(Status::Forbidden)
+        }
+        x if x.group_id() != bot.group_id() => {
+            debug!("received a POST request with invalid `group_id`");
+            Err(Status::Forbidden)
+        }
+        x if x.r#type() == "confirmation" => {
+            debug!("responded with confirmation token");
+            Ok(bot.confirmation_token().clone())
+        }
+        _ => {
+            bot.handle(&data);
+            Ok(VK_OK.into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_returns_405() {
+        assert_eq!(get(), Status::MethodNotAllowed);
+    }
+
+    fn post_test(secret: &str, group_id: i32, event: &str) -> Result<String, Status> {
+        let rocket = rocket::ignite().manage(Bot::new(
+            "vk_token",
+            "confirmation_token",
+            1,
+            "secret",
+            12345,
+            Default::default(),
+        ));
+
+        post(
+            Json(CallbackAPIRequest::new(
+                secret,
+                group_id,
+                event,
+                Default::default(),
+            )),
+            State::from(&rocket).unwrap(),
+        )
+    }
+
+    #[test]
+    fn post_invalid_secret_returns_403() {
+        assert_eq!(post_test("wrong_secret", 1, ""), Err(Status::Forbidden));
+    }
+
+    #[test]
+    fn post_invalid_group_id_returns_403() {
+        assert_eq!(post_test("secret", 1337, ""), Err(Status::Forbidden));
+    }
+
+    #[test]
+    fn post_confirmation_returns_confirmation_token() {
+        assert_eq!(
+            post_test("secret", 1, "confirmation"),
+            Ok("confirmation_token".to_string())
+        );
     }
 }

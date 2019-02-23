@@ -17,6 +17,16 @@ pub struct CallbackAPIRequest {
 }
 
 impl CallbackAPIRequest {
+    /// Creates a new [`CallbackAPIRequest`].
+    pub fn new(secret: &str, group_id: i32, r#type: &str, object: Object) -> Self {
+        Self {
+            secret: secret.into(),
+            group_id,
+            r#type: r#type.into(),
+            object,
+        }
+    }
+
     /// Returns the secret sent in this request.
     pub fn secret(&self) -> &str {
         &self.secret
