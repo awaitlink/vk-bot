@@ -77,6 +77,27 @@ impl Default for Object {
 }
 
 impl Object {
+    /// Creates a new [`Object`].
+    pub fn new(
+        from_id: Option<Integer>,
+        peer_id: Option<Integer>,
+        user_id: Option<Integer>,
+        text: Option<String>,
+        payload: Option<String>,
+        action: Option<Value>,
+        extra: HashMap<String, Value>,
+    ) -> Self {
+        Self {
+            from_id,
+            peer_id,
+            user_id,
+            text,
+            payload,
+            action,
+            extra,
+        }
+    }
+
     /// Returns the "from" ID of this [`Object`].
     pub fn get_from_id(&self) -> &Option<Integer> {
         &self.from_id
