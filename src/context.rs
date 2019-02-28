@@ -1,7 +1,6 @@
 //! The [`Context`] struct.
 
 use crate::{core::Event, request::Object, response::Response};
-use log::trace;
 use rvk::{error::Error, methods::messages, objects::Integer, APIClient, Params};
 use std::sync::{Arc, Mutex};
 

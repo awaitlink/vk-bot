@@ -1,7 +1,6 @@
 //! The [`Bot`] struct and server setup.
 
 use crate::{core::Core, request::CallbackAPIRequest};
-use log::{debug, info};
 use rocket::{
     config::{Config, Environment},
     http::Status,

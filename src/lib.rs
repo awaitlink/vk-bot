@@ -20,6 +20,9 @@
 #[macro_use]
 extern crate rocket;
 
+#[macro_use]
+extern crate log;
+
 pub use crate::{
     bot::Bot,
     context::Context,
