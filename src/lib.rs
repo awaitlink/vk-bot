@@ -7,7 +7,7 @@
 //! # Example
 //! The following example is from
 //! [`examples/basic.rs`](https://github.com/u32i64/vk-bot/blob/master/examples/basic.rs).
-//! It is not tested here as [`Bot::start`] never returns.
+//! It is not tested as a doc-test because [`Bot::start`] never returns.
 //!
 //! ```ignore
 #![doc(include = "../examples/basic.rs")]

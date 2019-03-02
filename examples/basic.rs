@@ -8,6 +8,7 @@ fn main() {
     let simple_handler = |message| {
         // ...that returns a handler!
         Handler::new(move |ctx| {
+            // This handler just sets the text of the message and sends it.
             ctx.response().set_message(message);
             eprintln!("{:?}", ctx.send());
         })
@@ -15,11 +16,15 @@ fn main() {
 
     // Create a keyboard.
     let kbd = Keyboard::new(
-        vec![vec![
-            Button::new("A", Color::Primary, None),
-            Button::new("B", Color::Default, Some(r#"{"a": "b"}"#.into())),
-        ]],
-        false,
+        // Vec of rows
+        vec![
+            // Row 0
+            vec![
+                Button::new("A", Color::Primary, None),
+                Button::new("B", Color::Default, Some(r#"{"a": "b"}"#.into())),
+            ],
+        ],
+        false, // One-time? (i.e. show only until a button is pressed on the keyboard?)
     );
 
     let core = Core::new()

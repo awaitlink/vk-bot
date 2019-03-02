@@ -4,11 +4,14 @@
 //! ```
 //! # use vk_bot::keyboard::{Keyboard, Button, Color};
 //! Keyboard::new(
+//!     // Vec of rows
 //!     vec![
+//!         // Row 0
 //!         vec![
 //!             Button::new("A", Color::Primary, None),
 //!             Button::new("B", Color::Default, None),
 //!         ],
+//!         // Row 1
 //!         vec![
 //!             Button::new("C", Color::Positive, None),
 //!             Button::new("D", Color::Negative, Some("{\"payload\": \"json\"}".into())),
@@ -21,11 +24,12 @@
 //! will look like this:
 //!
 //! ```ignore
-//! +-------+-------+
-//! |   A   |   B   |
-//! +-------+-------+
-//! |   C   |   D   |
-//! +-------+-------+
+//!         column 0    column 1
+//!       +-----------+-----------+
+//! row 0 |     A     |     B     |
+//!       +-----------+-----------+
+//! row 1 |     C     |     D     |
+//!       +-----------+-----------+
 //! ```
 
 use serde_derive::Serialize;
@@ -53,6 +57,8 @@ impl Keyboard {
     ///
     /// `buttons` is a [`Vec`] of rows (which are [`Vec`]s themselves as well)
     /// of [`Button`]s.
+    ///
+    /// `one_time` sets if the keyboard should be shown only until a button of it is pressed.
     pub fn new(buttons: Vec<Vec<Button>>, one_time: bool) -> Self {
         Self { buttons, one_time }
     }
