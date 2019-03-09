@@ -3,11 +3,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2019-03-09
+### Added
+- `group_id: i32` field to `Context` and matching `Context::group_id` method.
+### Changed
+- `Context::new` now uses `CallbackAPIRequest` instead of `Object` (to extract the group id).
+### Fixed
+- When searching command handlers for a message that contains a mention of a user or a bot in the beginning, the bot will only respond when the mention is of the bot (i.e. contains the bot's group id).
+
+
 ## [0.3.1] - 2019-03-08
 ### Added
-- More tests
+- More tests.
 ### Changed
-- Small documentation improvements
+- Small documentation improvements.
 
 ## [0.3.0] - 2019-02-17
 ### Fixed

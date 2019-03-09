@@ -306,7 +306,7 @@ impl Core {
         trace!("handling {:#?}", req);
 
         let event: Event = req.r#type().into();
-        let mut ctx = Context::new(event, req.object().clone(), api);
+        let mut ctx = Context::new(event, req, api);
         self.handle_event(event, &mut ctx);
     }
 
@@ -403,9 +403,9 @@ impl Core {
             for command in self.command_handlers.keys() {
                 use regex::{escape, Regex};
 
-                // TODO: Should match only the bot's group ID instead of all (`\d+`)
                 let re = Regex::new(&format!(
-                    "^( *\\[club\\d+\\|.*\\])?( *{}{})+",
+                    "^( *\\[club{}\\|.*\\])?( *{}{})+",
+                    ctx.group_id(),
                     match &self.cmd_prefix {
                         Some(prefix) => escape(prefix.as_str()),
                         None => "".into(),
@@ -477,7 +477,7 @@ mod tests {
 
         let mut ctx = Context::new(
             Event::MessageNew,
-            obj,
+            &CallbackAPIRequest::new("secret", 1, &Event::MessageNew.to_string(), obj),
             Arc::new(Mutex::new(APIClient::new("vk_token".into()))),
         );
 

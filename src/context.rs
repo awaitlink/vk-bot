@@ -1,6 +1,10 @@
 //! The [`Context`] struct.
 
-use crate::{core::Event, request::Object, response::Response};
+use crate::{
+    core::Event,
+    request::{CallbackAPIRequest, Object},
+    response::Response,
+};
 use rvk::{error::Error, methods::messages, objects::Integer, APIClient, Params};
 use std::sync::{Arc, Mutex};
 
@@ -8,6 +12,7 @@ use std::sync::{Arc, Mutex};
 /// message.
 #[derive(Debug)]
 pub struct Context {
+    group_id: i32,
     event: Event,
     object: Object,
     api: Arc<Mutex<APIClient>>,
@@ -22,7 +27,9 @@ impl Context {
     /// - no user_id on object (only [`Event::MessageAllow`])
     /// - no from_id on object ([`Event::MessageTypingState`])
     /// - no peer_id on object (other events)
-    pub fn new(event: Event, object: Object, api: Arc<Mutex<APIClient>>) -> Self {
+    pub fn new(event: Event, req: &CallbackAPIRequest, api: Arc<Mutex<APIClient>>) -> Self {
+        let object = req.object();
+
         let peer_id = match event {
             Event::MessageAllow => object
                 .user_id()
@@ -34,12 +41,18 @@ impl Context {
         };
 
         Self {
+            group_id: req.group_id(),
             event,
-            object,
+            object: object.clone(),
             api,
             peer_id,
             response: Response::new(),
         }
+    }
+
+    /// Returns the group ID.
+    pub fn group_id(&self) -> i32 {
+        self.group_id
     }
 
     /// Returns the original Callback API event type that caused this handler to
