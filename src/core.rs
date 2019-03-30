@@ -8,6 +8,7 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     fmt::{Debug, Display, Error, Formatter},
     ops::Deref,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
 
@@ -58,37 +59,35 @@ impl Display for Event {
     }
 }
 
-impl From<&str> for Event {
-    /// Converts a `&`[`str`] into the associated event.
-    ///
-    /// # Panics
-    /// - when given unknown event
-    fn from(s: &str) -> Self {
-        match s {
-            "message_new" => Event::MessageNew,
-            "message_reply" => Event::MessageReply,
-            "message_edit" => Event::MessageEdit,
-            "message_typing_state" => Event::MessageTypingState,
-            "message_allow" => Event::MessageAllow,
-            "message_deny" => Event::MessageDeny,
+/// Error type for `impl FromStr for Event`.
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Ord)]
+pub struct EventFromStrError(String);
 
-            "start" => Event::Start,
-            "service_action" => Event::ServiceAction,
-
-            "no_match" => Event::NoMatch,
-
-            _ => panic!("unknown event: `{}`", s),
-        }
+impl Display for EventFromStrError {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        write!(f, "unknown event: `{}`", self.0)
     }
 }
 
-impl From<String> for Event {
-    /// Converts a [`String`] into the associated event.
-    ///
-    /// # Panics
-    /// - when given unknown event
-    fn from(s: String) -> Self {
-        s.as_str().into()
+impl FromStr for Event {
+    type Err = EventFromStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "message_new" => Ok(Event::MessageNew),
+            "message_reply" => Ok(Event::MessageReply),
+            "message_edit" => Ok(Event::MessageEdit),
+            "message_typing_state" => Ok(Event::MessageTypingState),
+            "message_allow" => Ok(Event::MessageAllow),
+            "message_deny" => Ok(Event::MessageDeny),
+
+            "start" => Ok(Event::Start),
+            "service_action" => Ok(Event::ServiceAction),
+
+            "no_match" => Ok(Event::NoMatch),
+
+            _ => Err(EventFromStrError(s.into())),
+        }
     }
 }
 
@@ -305,7 +304,7 @@ impl Core {
     pub fn handle(&self, req: &CallbackAPIRequest, api: Arc<Mutex<APIClient>>) {
         trace!("handling {:#?}", req);
 
-        let event: Event = req.r#type().into();
+        let event: Event = req.r#type().parse().expect("error while handling request");
         let mut ctx = Context::new(event, req, api);
         self.handle_event(event, &mut ctx);
     }
@@ -446,170 +445,208 @@ impl Core {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::request::Object;
-    use std::sync::mpsc;
 
-    #[derive(Clone, Copy, PartialEq, Debug)]
-    enum Wiring {
-        ServiceAction,
-        Start,
-        Payload,
-        DynPayload,
-        Command,
-        Regex,
-        NoMatch,
+    mod event {
+        use super::*;
+
+        fn test_display_parse(expected_str: &str, expected_event: Event) {
+            let event: Event = expected_str
+                .parse()
+                .expect(&format!("could not parse event: `{}`", expected_str));
+            assert_eq!(event, expected_event);
+            let str = format!("{}", event);
+            assert_eq!(str, expected_str);
+        }
+
+        #[test]
+        fn display_parse() {
+            test_display_parse("message_new", Event::MessageNew);
+            test_display_parse("message_reply", Event::MessageReply);
+            test_display_parse("message_edit", Event::MessageEdit);
+            test_display_parse("message_typing_state", Event::MessageTypingState);
+            test_display_parse("message_allow", Event::MessageAllow);
+            test_display_parse("message_deny", Event::MessageDeny);
+
+            test_display_parse("start", Event::Start);
+            test_display_parse("service_action", Event::ServiceAction);
+
+            test_display_parse("no_match", Event::NoMatch);
+        }
+
+        #[test]
+        #[should_panic(expected = "unknown event")]
+        fn unknown_event() {
+            panic!("{}", "foo_bar".parse::<Event>().unwrap_err());
+        }
     }
 
-    fn wiring_sender(tx: &Arc<Mutex<mpsc::SyncSender<Wiring>>>, wiring: Wiring) -> Handler {
-        let tx = Arc::clone(tx);
+    mod wiring {
+        use super::*;
+        use crate::request::Object;
+        use std::sync::mpsc;
 
-        Handler::new(move |_| {
-            tx.lock()
-                .expect("failed to lock Mutex")
-                .send(wiring)
-                .expect("failed to send Wiring");
-        })
-    }
+        #[derive(Clone, Copy, PartialEq, Debug)]
+        enum Wiring {
+            ServiceAction,
+            Start,
+            Payload,
+            DynPayload,
+            Command,
+            Regex,
+            NoMatch,
+        }
 
-    fn test_wiring(obj: Object) -> Wiring {
-        let (tx, rx) = mpsc::sync_channel(1);
-        let tx = Arc::new(Mutex::new(tx));
+        fn wiring_sender(tx: &Arc<Mutex<mpsc::SyncSender<Wiring>>>, wiring: Wiring) -> Handler {
+            let tx = Arc::clone(tx);
 
-        let mut ctx = Context::new(
-            Event::MessageNew,
-            &CallbackAPIRequest::new("secret", 1, &Event::MessageNew.to_string(), obj),
-            Arc::new(Mutex::new(APIClient::new("vk_token".into()))),
-        );
+            Handler::new(move |_| {
+                tx.lock()
+                    .expect("failed to lock Mutex")
+                    .send(wiring)
+                    .expect("failed to send Wiring");
+            })
+        }
 
-        Core::new()
-            .cmd_prefix("/")
-            .on(
-                Event::ServiceAction,
-                wiring_sender(&tx, Wiring::ServiceAction),
-            )
-            .on(Event::Start, wiring_sender(&tx, Wiring::Start))
-            .payload(r#"{"a": "b"}"#, wiring_sender(&tx, Wiring::Payload))
-            .dyn_payload(
-                Tester::new(|_| true),
-                wiring_sender(&tx, Wiring::DynPayload),
-            )
-            .cmd("test", wiring_sender(&tx, Wiring::Command))
-            .regex(r#"\d"#, wiring_sender(&tx, Wiring::Regex))
-            .on(Event::NoMatch, wiring_sender(&tx, Wiring::NoMatch))
-            .handle_event(Event::MessageNew, &mut ctx);
+        fn test_wiring(obj: Object) -> Wiring {
+            let (tx, rx) = mpsc::sync_channel(1);
+            let tx = Arc::new(Mutex::new(tx));
 
-        rx.recv().expect("failed to recv Wiring")
-    }
+            let mut ctx = Context::new(
+                Event::MessageNew,
+                &CallbackAPIRequest::new("secret", 1, &Event::MessageNew.to_string(), obj),
+                Arc::new(Mutex::new(APIClient::new("vk_token".into()))),
+            );
 
-    #[test]
-    fn wiring_service_action() {
-        assert_eq!(
-            test_wiring(Object::new(
-                None,               // from_id
-                Some(1),            // peer_id
-                None,               // user_id
-                None,               // text
-                None,               // payload
-                Some(Value::Null),  // action
-                Default::default()  // extra fields
-            )),
-            Wiring::ServiceAction
-        );
-    }
+            Core::new()
+                .cmd_prefix("/")
+                .on(
+                    Event::ServiceAction,
+                    wiring_sender(&tx, Wiring::ServiceAction),
+                )
+                .on(Event::Start, wiring_sender(&tx, Wiring::Start))
+                .payload(r#"{"a": "b"}"#, wiring_sender(&tx, Wiring::Payload))
+                .dyn_payload(
+                    Tester::new(|_| true),
+                    wiring_sender(&tx, Wiring::DynPayload),
+                )
+                .cmd("test", wiring_sender(&tx, Wiring::Command))
+                .regex(r#"\d"#, wiring_sender(&tx, Wiring::Regex))
+                .on(Event::NoMatch, wiring_sender(&tx, Wiring::NoMatch))
+                .handle_event(Event::MessageNew, &mut ctx);
 
-    #[test]
-    fn wiring_start() {
-        assert_eq!(
-            test_wiring(Object::new(
-                None,                                   // from_id
-                Some(1),                                // peer_id
-                None,                                   // user_id
-                None,                                   // text
-                Some(r#"{"command": "start"}"#.into()), // payload
-                None,                                   // action
-                Default::default()                      // extra fields
-            )),
-            Wiring::Start
-        );
-    }
+            rx.recv().expect("failed to recv Wiring")
+        }
 
-    #[test]
-    fn wiring_payload() {
-        assert_eq!(
-            test_wiring(Object::new(
-                None,                         // from_id
-                Some(1),                      // peer_id
-                None,                         // user_id
-                None,                         // text
-                Some(r#"{"a": "b"}"#.into()), // payload
-                None,                         // action
-                Default::default()            // extra fields
-            )),
-            Wiring::Payload
-        );
-    }
+        #[test]
+        fn service_action() {
+            assert_eq!(
+                test_wiring(Object::new(
+                    None,               // from_id
+                    Some(1),            // peer_id
+                    None,               // user_id
+                    None,               // text
+                    None,               // payload
+                    Some(Value::Null),  // action
+                    Default::default()  // extra fields
+                )),
+                Wiring::ServiceAction
+            );
+        }
 
-    #[test]
-    fn wiring_dyn_payload() {
-        assert_eq!(
-            test_wiring(Object::new(
-                None,                                   // from_id
-                Some(1),                                // peer_id
-                None,                                   // user_id
-                None,                                   // text
-                Some(r#"{"other": "payload"}"#.into()), // payload
-                None,                                   // action
-                Default::default()                      // extra fields
-            )),
-            Wiring::DynPayload
-        );
-    }
+        #[test]
+        fn start() {
+            assert_eq!(
+                test_wiring(Object::new(
+                    None,                                   // from_id
+                    Some(1),                                // peer_id
+                    None,                                   // user_id
+                    None,                                   // text
+                    Some(r#"{"command": "start"}"#.into()), // payload
+                    None,                                   // action
+                    Default::default()                      // extra fields
+                )),
+                Wiring::Start
+            );
+        }
 
-    #[test]
-    fn wiring_command() {
-        assert_eq!(
-            test_wiring(Object::new(
-                None,                 // from_id
-                Some(1),              // peer_id
-                None,                 // user_id
-                Some("/test".into()), // text
-                None,                 // payload
-                None,                 // action
-                Default::default()    // extra fields
-            )),
-            Wiring::Command
-        );
-    }
+        #[test]
+        fn payload() {
+            assert_eq!(
+                test_wiring(Object::new(
+                    None,                         // from_id
+                    Some(1),                      // peer_id
+                    None,                         // user_id
+                    None,                         // text
+                    Some(r#"{"a": "b"}"#.into()), // payload
+                    None,                         // action
+                    Default::default()            // extra fields
+                )),
+                Wiring::Payload
+            );
+        }
 
-    #[test]
-    fn wiring_regex() {
-        assert_eq!(
-            test_wiring(Object::new(
-                None,                // from_id
-                Some(1),             // peer_id
-                None,                // user_id
-                Some("1337".into()), // text
-                None,                // payload
-                None,                // action
-                Default::default()   // extra fields
-            )),
-            Wiring::Regex
-        );
-    }
+        #[test]
+        fn dyn_payload() {
+            assert_eq!(
+                test_wiring(Object::new(
+                    None,                                   // from_id
+                    Some(1),                                // peer_id
+                    None,                                   // user_id
+                    None,                                   // text
+                    Some(r#"{"other": "payload"}"#.into()), // payload
+                    None,                                   // action
+                    Default::default()                      // extra fields
+                )),
+                Wiring::DynPayload
+            );
+        }
 
-    #[test]
-    fn wiring_no_match() {
-        assert_eq!(
-            test_wiring(Object::new(
-                None,                 // from_id
-                Some(1),              // peer_id
-                None,                 // user_id
-                Some("words".into()), // text
-                None,                 // payload
-                None,                 // action
-                Default::default()    // extra fields
-            )),
-            Wiring::NoMatch
-        );
+        #[test]
+        fn command() {
+            assert_eq!(
+                test_wiring(Object::new(
+                    None,                 // from_id
+                    Some(1),              // peer_id
+                    None,                 // user_id
+                    Some("/test".into()), // text
+                    None,                 // payload
+                    None,                 // action
+                    Default::default()    // extra fields
+                )),
+                Wiring::Command
+            );
+        }
+
+        #[test]
+        fn regex() {
+            assert_eq!(
+                test_wiring(Object::new(
+                    None,                // from_id
+                    Some(1),             // peer_id
+                    None,                // user_id
+                    Some("1337".into()), // text
+                    None,                // payload
+                    None,                // action
+                    Default::default()   // extra fields
+                )),
+                Wiring::Regex
+            );
+        }
+
+        #[test]
+        fn no_match() {
+            assert_eq!(
+                test_wiring(Object::new(
+                    None,                 // from_id
+                    Some(1),              // peer_id
+                    None,                 // user_id
+                    Some("words".into()), // text
+                    None,                 // payload
+                    None,                 // action
+                    Default::default()    // extra fields
+                )),
+                Wiring::NoMatch
+            );
+        }
     }
 }

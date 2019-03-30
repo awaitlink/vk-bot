@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2019-03-30
+### Added
+- Some tests for parsing/displaying `Event`s.
+### Changed
+- Replaced `impl`s `From<&str>` and `From<String>` `for core::Event` with `impl FromStr`.
+- Move tests `core::tests::wiring_*` to `core::tests::wiring::*`.
+
 ## [0.4.0] - 2019-03-09
 ### Added
 - `group_id: i32` field to `Context` and matching `Context::group_id` method.
