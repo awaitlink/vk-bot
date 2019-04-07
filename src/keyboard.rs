@@ -23,7 +23,7 @@
 //!
 //! will look like this:
 //!
-//! ```ignore
+//! ```text
 //!         column 0    column 1
 //!       +-----------+-----------+
 //! row 0 |     A     |     B     |

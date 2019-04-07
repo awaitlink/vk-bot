@@ -513,7 +513,7 @@ mod tests {
 
             let mut ctx = Context::new(
                 Event::MessageNew,
-                &CallbackAPIRequest::new("secret", 1, &Event::MessageNew.to_string(), obj),
+                &CallbackAPIRequest::new(Some("secret".into()), 1, &Event::MessageNew.to_string(), obj),
                 Arc::new(Mutex::new(APIClient::new("vk_token".into()))),
             );
 

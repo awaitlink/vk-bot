@@ -44,11 +44,11 @@ fn main() {
         .dyn_payload(Tester::new(|_| true), simple_handler("Received a payload!"));
 
     Bot::new(
-        "your vk token",      // VK token
-        "f123456",            // Confirmation token (from Callback API settings)
-        1,                    // Group ID
-        "very_secure_phrase", // Secret (from Callback API settings)
-        12345,                // Port
+        "your vk token",                   // VK token
+        "f123456",                         // Confirmation token (from Callback API settings)
+        1,                                 // Group ID
+        Some("very_secure_phrase".into()), // Secret (from Callback API settings)
+        12345,                             // Port
         core,
     )
     .start();

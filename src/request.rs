@@ -8,7 +8,7 @@ use std::collections::HashMap;
 /// A request received from Callback API.
 #[derive(Debug, Deserialize)]
 pub struct CallbackAPIRequest {
-    secret: String,
+    secret: Option<String>,
     group_id: i32,
     #[serde(rename = "type")]
     r#type: String,
@@ -18,18 +18,18 @@ pub struct CallbackAPIRequest {
 
 impl CallbackAPIRequest {
     /// Creates a new [`CallbackAPIRequest`].
-    pub fn new(secret: &str, group_id: i32, r#type: &str, object: Object) -> Self {
+    pub fn new(secret: Option<String>, group_id: i32, r#type: &str, object: Object) -> Self {
         Self {
-            secret: secret.into(),
+            secret,
             group_id,
             r#type: r#type.into(),
             object,
         }
     }
 
-    /// Returns the secret sent in this request.
-    pub fn secret(&self) -> &str {
-        &self.secret
+    /// Returns the secret sent in this request, if present.
+    pub fn secret(&self) -> Option<String> {
+        self.secret.clone()
     }
 
     /// Returns the group ID sent in this request.

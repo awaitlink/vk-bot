@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 /// The string `ok` which needs to be sent in response to every Callback API
 /// request.
-const VK_OK: &'static str = "ok";
+const VK_OK: &str = "ok";
 
 /// [`Bot`] represents a chat bot, and hands received requests to [`Core`].
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ pub struct Bot {
     api: Arc<Mutex<APIClient>>,
     confirmation_token: String,
     group_id: i32,
-    secret: String,
+    secret: Option<String>,
     port: u16,
     core: Core,
 }
@@ -32,7 +32,7 @@ impl Bot {
         vk_token: &str,
         confirmation_token: &str,
         group_id: i32,
-        secret: &str,
+        secret: Option<String>,
         port: u16,
         core: Core,
     ) -> Self {
@@ -40,7 +40,7 @@ impl Bot {
             api: Arc::new(Mutex::new(APIClient::new(vk_token.into()))),
             confirmation_token: confirmation_token.into(),
             group_id,
-            secret: secret.into(),
+            secret,
             port,
             core,
         }
@@ -87,8 +87,8 @@ impl Bot {
     }
 
     /// Returns the secret stored in this [`Bot`].
-    pub fn secret(&self) -> &String {
-        &self.secret
+    pub fn secret(&self) -> Option<String> {
+        self.secret.clone()
     }
 }
 
@@ -141,14 +141,14 @@ mod tests {
             "vk_token",
             "confirmation_token",
             1,
-            "secret",
+            Some("secret".into()),
             12345,
             Default::default(),
         ));
 
         post(
             Json(CallbackAPIRequest::new(
-                secret,
+                Some(secret.into()),
                 group_id,
                 event,
                 Default::default(),
