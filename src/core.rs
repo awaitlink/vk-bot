@@ -1,18 +1,19 @@
-//! The [`Core`] struct, supported [`Event`][crate::core::Event]s, and
-//! handler/tester types.
+//! The [`Core`] struct, supported [`Event`]s, and
+//! handler / tester types.
 
 use crate::{context::Context, request::CallbackAPIRequest};
 use rvk::APIClient;
 use serde_json::Value;
 use std::{
     collections::{hash_map::Entry, HashMap},
+    convert::TryFrom,
     fmt::{Debug, Display, Error, Formatter},
     ops::Deref,
     str::FromStr,
     sync::{Arc, Mutex},
 };
 
-/// Events that are supported for event handlers.
+/// Events that are supported for event handlers. See also [`Core::on`].
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum Event {
     /// Callback API: `message_new`.
@@ -35,8 +36,8 @@ pub enum Event {
     /// action message.
     ServiceAction,
 
-    /// Generated when no matching handler for an event/payload/command/regex is
-    /// found.
+    /// Generated when no matching handler for an event / payload / command /
+    /// regex is found.
     NoMatch,
     // TODO: HandlerError event?
 }
@@ -91,6 +92,14 @@ impl FromStr for Event {
     }
 }
 
+impl TryFrom<&str> for Event {
+    type Error = <Event as FromStr>::Err;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+
 /// Inner type of [`Handler`].
 pub type HandlerInner = Arc<dyn Fn(&mut Context) + Send + Sync + 'static>;
 
@@ -132,8 +141,8 @@ impl Debug for Handler {
 pub type TesterInner = Arc<dyn (Fn(&String) -> bool) + Send + Sync + 'static>;
 
 /// Tester's [`Fn`] should return whether a payload string (you to set the
-/// payload in [`Keyboard`][`crate::keyboard::Keyboard`]
-/// [`Button`][`crate::keyboard::Button`]s) is interesting for a handler to
+/// payload in [`Keyboard`](crate::keyboard::Keyboard)
+/// [`Button`](crate::keyboard::Button)s) is interesting for a handler to
 /// handle.
 ///
 /// This is essentially a wrapper around `Arc<dyn (Fn(&String) -> bool) + ...>`.
@@ -227,7 +236,7 @@ impl Core {
     /// 6 | regex handlers ([`Core::regex`]) | respective handler
     /// 7 | anything except [`Event::MessageReply`] and [`Event::NoMatch`] | [`Event::NoMatch`]
     pub fn on(mut self, event: Event, handler: Handler) -> Self {
-        let entry = self.event_handlers.entry(event.into());
+        let entry = self.event_handlers.entry(event);
 
         match event {
             Event::MessageNew => panic!(
@@ -345,16 +354,15 @@ impl Core {
             return;
         }
 
-        if !self.try_handle_payload(ctx) {
-            if !self.try_handle_command(ctx) {
-                if !self.try_handle_regex(ctx) {
-                    trace!(
-                        "calling `no_match` (as `message_new` failed to match) handler for {:#?}",
-                        ctx
-                    );
-                    self.handle_event(Event::NoMatch, ctx);
-                }
-            }
+        if !self.try_handle_payload(ctx)
+            && !self.try_handle_command(ctx)
+            && !self.try_handle_regex(ctx)
+        {
+            trace!(
+                "calling `no_match` (as `message_new` failed to match) handler for {:#?}",
+                ctx
+            );
+            self.handle_event(Event::NoMatch, ctx);
         }
     }
 
@@ -459,7 +467,7 @@ mod tests {
         }
 
         #[test]
-        fn display_parse() {
+        fn display_and_parse() {
             test_display_parse("message_new", Event::MessageNew);
             test_display_parse("message_reply", Event::MessageReply);
             test_display_parse("message_edit", Event::MessageEdit);
@@ -475,7 +483,7 @@ mod tests {
 
         #[test]
         #[should_panic(expected = "unknown event")]
-        fn unknown_event() {
+        fn unknown() {
             panic!("{}", "foo_bar".parse::<Event>().unwrap_err());
         }
     }
@@ -513,7 +521,12 @@ mod tests {
 
             let mut ctx = Context::new(
                 Event::MessageNew,
-                &CallbackAPIRequest::new(Some("secret".into()), 1, &Event::MessageNew.to_string(), obj),
+                &CallbackAPIRequest::new(
+                    Some("secret".into()),
+                    1,
+                    &Event::MessageNew.to_string(),
+                    obj,
+                ),
                 Arc::new(Mutex::new(APIClient::new("vk_token".into()))),
             );
 

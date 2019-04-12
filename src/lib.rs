@@ -1,5 +1,7 @@
 //! Crate for creating chat bots for VK (VKontakte) communities.
 //!
+//! > **note:** this crate requires nightly Rust because of Rocket.
+//!
 //! You can see [`Core`] documentation for information on how to
 //! define bot behavior. In particular, make sure to take a look
 //! at [`Core::on`] first.

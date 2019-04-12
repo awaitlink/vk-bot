@@ -1,6 +1,6 @@
 [package]
 name = "vk-bot"
-version = "0.6.0" # README.md, CHANGELOG.md
+version = "0.7.0" # README.md, CHANGELOG.md
 authors = ["Artem Varaksa <aymfst@gmail.com>"]
 edition = "2018"
 license = "MIT"

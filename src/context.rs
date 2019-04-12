@@ -104,7 +104,7 @@ impl Context {
                 "attachment".into(),
                 attachments
                     .iter()
-                    .map(|info| info.to_string())
+                    .map(ToString::to_string)
                     .fold(String::new(), |acc, v| acc + "," + &v),
             );
         }

@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2019-04-12
+### Added
+- `impl TryFrom<&str> for {core::Event, keyboard::Color}`.
+- Some tests for parsing/displaying `Color`s.
+### Changed
+- Replaced `impl`s `From<&str>` and `From<String>` `for keyboard::Color` with `impl FromStr`.
+- Split `keyboard` tests into modules.
+- Some minor documentation tweaks.
+
 ## [0.6.0] - 2019-04-06
 ### Fixed
 - [Issue #3](https://github.com/u32i64/vk-bot/issues/3): make secret key optional. `{Bot, CallbackAPIRequest}::new` now use `Option<String>` as `secret` instead of `&str`.

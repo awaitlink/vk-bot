@@ -33,7 +33,11 @@
 //! ```
 
 use serde_derive::Serialize;
-use std::fmt::{Display, Error, Formatter};
+use std::{
+    convert::TryFrom,
+    fmt::{Display, Error, Formatter},
+    str::FromStr,
+};
 
 /// A keyboard consisting of [`Button`]s that may be shown to the user instead
 /// of the regular keyboard.
@@ -144,88 +148,125 @@ impl Display for Color {
     }
 }
 
-impl From<&str> for Color {
-    /// Converts a `&`[`str`] into the associated color.
-    ///
-    /// # Panics
-    /// - when given unknown color
-    fn from(s: &str) -> Self {
-        match s {
-            "primary" => Color::Primary,
-            "default" => Color::Default,
-            "negative" => Color::Negative,
-            "positive" => Color::Positive,
+/// Error type for `impl FromStr for Color`.
+#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Ord)]
+pub struct ColorFromStrError(String);
 
-            _ => panic!("unknown color: `{}`", s),
+impl Display for ColorFromStrError {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        write!(f, "unknown color: `{}`", self.0)
+    }
+}
+
+impl FromStr for Color {
+    type Err = ColorFromStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "primary" => Ok(Color::Primary),
+            "default" => Ok(Color::Default),
+            "negative" => Ok(Color::Negative),
+            "positive" => Ok(Color::Positive),
+
+            _ => Err(ColorFromStrError(s.into())),
         }
     }
 }
 
-impl From<String> for Color {
-    /// Converts a [`String`] into the associated color.
-    ///
-    /// # Panics
-    /// - when given unknown color
-    fn from(s: String) -> Self {
-        s.as_str().into()
+impl TryFrom<&str> for Color {
+    type Error = <Color as FromStr>::Err;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.parse()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
-    #[test]
-    fn empty_keyboard() -> Result<(), serde_json::Error> {
-        let kbd = Keyboard::new(vec![], false);
+    mod color {
+        use super::*;
 
-        assert_eq!(
-            serde_json::to_value(&kbd)?,
-            json!({
-                  "one_time": false,
-                  "buttons": [],
-            })
-        );
+        fn test_display_parse(expected_str: &str, expected_color: Color) {
+            let color: Color = expected_str
+                .parse()
+                .expect(&format!("could not parse color: `{}`", expected_str));
+            assert_eq!(color, expected_color);
+            let str = format!("{}", color);
+            assert_eq!(str, expected_str);
+        }
 
-        Ok(())
+        #[test]
+        fn display_and_parse() {
+            test_display_parse("primary", Color::Primary);
+            test_display_parse("default", Color::Default);
+            test_display_parse("negative", Color::Negative);
+            test_display_parse("positive", Color::Positive);
+        }
+
+        #[test]
+        #[should_panic(expected = "unknown color")]
+        fn unknown() {
+            panic!("{}", "foo".parse::<Color>().unwrap_err());
+        }
     }
 
-    #[test]
-    fn keyboard() -> Result<(), serde_json::Error> {
-        let payload = serde_json::to_string(&json!({"payload": "json"}))?;
+    mod keyboard {
+        use super::*;
+        use serde_json::json;
 
-        let kbd = Keyboard::new(
-            vec![
-                vec![
-                    Button::new("1", Color::Default, None),
-                    Button::new("2", Color::Primary, Some(payload.clone())),
-                ],
-                vec![
-                    Button::new("3", Color::Negative, None),
-                    Button::new("4", Color::Positive, None),
-                ],
-            ],
-            true,
-        );
+        #[test]
+        fn empty() -> Result<(), serde_json::Error> {
+            let kbd = Keyboard::new(vec![], false);
 
-        assert_eq!(
-            serde_json::to_value(&kbd)?,
-            json!({
-                "buttons":[
-                    [
-                        {"color":"default","action":{"type":"text","label":"1"}},
-                        {"color":"primary","action":{"type":"text","label":"2","payload":payload}}
+            assert_eq!(
+                serde_json::to_value(&kbd)?,
+                json!({
+                      "one_time": false,
+                      "buttons": [],
+                })
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn test1() -> Result<(), serde_json::Error> {
+            let payload = serde_json::to_string(&json!({"payload": "json"}))?;
+
+            let kbd = Keyboard::new(
+                vec![
+                    vec![
+                        Button::new("1", Color::Default, None),
+                        Button::new("2", Color::Primary, Some(payload.clone())),
                     ],
-                    [
-                        {"color":"negative","action":{"type":"text","label":"3"}},
-                        {"color":"positive","action":{"type":"text","label":"4"}}
-                    ]
+                    vec![
+                        Button::new("3", Color::Negative, None),
+                        Button::new("4", Color::Positive, None),
+                    ],
                 ],
-                "one_time":true
-            })
-        );
+                true,
+            );
 
-        Ok(())
+            assert_eq!(
+                serde_json::to_value(&kbd)?,
+                json!({
+                    "buttons":[
+                        [
+                            {"color":"default","action":{"type":"text","label":"1"}},
+                            {"color":"primary","action":{"type":"text","label":"2","payload":payload}}
+                        ],
+                        [
+                            {"color":"negative","action":{"type":"text","label":"3"}},
+                            {"color":"positive","action":{"type":"text","label":"4"}}
+                        ]
+                    ],
+                    "one_time":true
+                })
+            );
+
+            Ok(())
+        }
     }
 }
