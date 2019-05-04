@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2019-05-04
+### Changed
+- [`Core::regex`](https://docs.rs/vk-bot/0/vk_bot/core/struct.Core.html#method.regex) now takes [`regex::Regex`](https://docs.rs/regex/1/regex/struct.Regex.html) as the regular expression argument, instead of `&str`.
+- Updated [`examples/basic.rs`](https://github.com/u32i64/vk-bot/blob/master/examples/basic.rs) per the above change.
+
 ## [0.7.0] - 2019-04-12
 ### Added
 - `impl TryFrom<&str> for {core::Event, keyboard::Color}`.

@@ -2,6 +2,7 @@
 //! handler / tester types.
 
 use crate::{context::Context, request::CallbackAPIRequest};
+use regex::Regex;
 use rvk::APIClient;
 use serde_json::Value;
 use std::{
@@ -188,7 +189,7 @@ pub struct Core {
     static_payload_handlers: HashMap<String, Handler>,
     dyn_payload_handlers: Vec<(Tester, Handler)>,
     command_handlers: HashMap<String, Handler>,
-    regex_handlers: HashMap<String, Handler>,
+    regex_handlers: Vec<(Regex, Handler)>,
 }
 
 impl Default for Core {
@@ -297,15 +298,8 @@ impl Core {
     }
 
     /// Adds a new regex handler to this [`Core`].
-    pub fn regex(mut self, regex: &str, handler: Handler) -> Self {
-        let entry = self.regex_handlers.entry(regex.into());
-        match entry {
-            Entry::Occupied(_) => {
-                panic!("attempt to set up duplicate handler for regex `{}`", regex);
-            }
-            Entry::Vacant(entry) => entry.insert(handler),
-        };
-
+    pub fn regex(mut self, re: Regex, handler: Handler) -> Self {
+        self.regex_handlers.push((re, handler));
         self
     }
 
@@ -408,10 +402,10 @@ impl Core {
     fn try_handle_command(&self, ctx: &mut Context) -> bool {
         if let Some(text) = ctx.object().text() {
             for command in self.command_handlers.keys() {
-                use regex::{escape, Regex};
+                use regex::escape;
 
                 let re = Regex::new(&format!(
-                    "^( *\\[club{}\\|.*\\])?( *{}{})+",
+                    r#"^( *\[club{}\|.*\])?( *{}{})+"#,
                     ctx.group_id(),
                     match &self.cmd_prefix {
                         Some(prefix) => escape(prefix.as_str()),
@@ -435,12 +429,9 @@ impl Core {
     /// that was successful, `false` otherwise.
     fn try_handle_regex(&self, ctx: &mut Context) -> bool {
         if let Some(text) = ctx.object().text() {
-            for regex_str in self.regex_handlers.keys() {
-                use regex::Regex;
-                let re = Regex::new(&regex_str).expect("invalid regex");
-
+            for (re, handler) in self.regex_handlers.iter() {
                 if re.is_match(&text) {
-                    self.regex_handlers[regex_str](ctx);
+                    handler(ctx);
                     return true;
                 }
             }
@@ -543,7 +534,10 @@ mod tests {
                     wiring_sender(&tx, Wiring::DynPayload),
                 )
                 .cmd("test", wiring_sender(&tx, Wiring::Command))
-                .regex(r#"\d"#, wiring_sender(&tx, Wiring::Regex))
+                .regex(
+                    Regex::new(r#"\d"#).unwrap(),
+                    wiring_sender(&tx, Wiring::Regex),
+                )
                 .on(Event::NoMatch, wiring_sender(&tx, Wiring::NoMatch))
                 .handle_event(Event::MessageNew, &mut ctx);
 
@@ -618,13 +612,13 @@ mod tests {
         fn command() {
             assert_eq!(
                 test_wiring(Object::new(
-                    None,                 // from_id
-                    Some(1),              // peer_id
-                    None,                 // user_id
-                    Some("/test".into()), // text
-                    None,                 // payload
-                    None,                 // action
-                    Default::default()    // extra fields
+                    None,                                    // from_id
+                    Some(1),                                 // peer_id
+                    None,                                    // user_id
+                    Some("[club1|Group Name] /test".into()), // text
+                    None,                                    // payload
+                    None,                                    // action
+                    Default::default()                       // extra fields
                 )),
                 Wiring::Command
             );

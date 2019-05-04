@@ -1,3 +1,4 @@
+use regex::Regex;
 use vk_bot::{Bot, Core, Event, Handler};
 
 fn main() {
@@ -19,7 +20,7 @@ fn main() {
         // Command that will be used if message contains `/say_hi` (without quotes) in the beginning:
         .cmd("say_hi", simple_handler("Hi!"))
         // Will be used if message contains `nice` in it:
-        .regex("nice", simple_handler("Thanks!"))
+        .regex(Regex::new("nice").unwrap(), simple_handler("Thanks!"))
         // Will be used if the bot doesn't know how to respond:
         .on(
             Event::NoMatch,
