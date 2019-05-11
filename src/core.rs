@@ -518,7 +518,7 @@ mod tests {
                     &Event::MessageNew.to_string(),
                     obj,
                 ),
-                Arc::new(Mutex::new(APIClient::new("vk_token".into()))),
+                Arc::new(Mutex::new(APIClient::new("vk_token"))),
             );
 
             Core::new()

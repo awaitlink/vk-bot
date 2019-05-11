@@ -37,7 +37,7 @@ impl Bot {
         core: Core,
     ) -> Self {
         Self {
-            api: Arc::new(Mutex::new(APIClient::new(vk_token.into()))),
+            api: Arc::new(Mutex::new(APIClient::new(vk_token))),
             confirmation_token: confirmation_token.into(),
             group_id,
             secret,
