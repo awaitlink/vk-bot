@@ -89,6 +89,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [0.1.0] - 2019-02-17
 ### First release
 
+[2.0.0]: https://github.com/u32i64/vk-bot/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/u32i64/vk-bot/compare/v0.8.0...v1.0.0
 [0.8.0]: https://github.com/u32i64/vk-bot/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/u32i64/vk-bot/compare/v0.6.0...v0.7.0
