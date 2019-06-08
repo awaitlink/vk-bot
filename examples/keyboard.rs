@@ -18,8 +18,8 @@ fn main() {
         vec![
             // Row 0
             vec![
-                Button::new("A", Color::Primary, None),
-                Button::new("B", Color::Default, Some(r#"{"a": "b"}"#.into())),
+                Button::text("A", Color::Primary, None),
+                Button::text("B", Color::Secondary, Some(r#"{"a": "b"}"#.into())),
             ],
         ],
         false, // One-time? (i.e. show only until a button is pressed on the keyboard?)

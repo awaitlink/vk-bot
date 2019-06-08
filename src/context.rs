@@ -112,7 +112,7 @@ impl Context {
         if let Some(kbd) = kbd {
             params.insert(
                 "keyboard".into(),
-                serde_json::to_string(kbd).expect("failed to serialize keyboard"),
+                serde_json::to_string(&kbd).expect("failed to serialize keyboard to String"),
             );
         }
 
