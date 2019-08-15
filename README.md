@@ -1,10 +1,9 @@
 # vk-bot
 [![version][badges/version]][crate]
 [![downloads][badges/downloads]][crate]
-![travis][badges/travis]
 [![license][badges/license]][license]
 
-> Rust crate for creating chat bots for VK (VKontakte) communities.    
+> Rust crate for creating chat bots for VK (VKontakte) communities.
 > [crates.io][crate] ⋅ **[docs »][docs]** ⋅ **[examples »][examples]**
 
 ## Installation
@@ -17,7 +16,6 @@ vk-bot = "2.0"
 
 [badges/version]: https://img.shields.io/crates/v/vk-bot.svg?style=for-the-badge
 [badges/downloads]: https://img.shields.io/crates/d/vk-bot.svg?style=for-the-badge
-[badges/travis]: https://img.shields.io/travis/com/u32i64/vk-bot.svg?style=for-the-badge
 [badges/license]: https://img.shields.io/github/license/u32i64/vk-bot.svg?style=for-the-badge
 
 [crate]: https://crates.io/crates/vk-bot
