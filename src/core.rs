@@ -11,7 +11,7 @@ use std::{
     fmt::{Debug, Display, Error, Formatter},
     ops::Deref,
     str::FromStr,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 /// Events that are supported for event handlers. See also [`Core::on`].
@@ -304,7 +304,7 @@ impl Core {
     }
 
     /// Handles a request by telling the appropriate [`Handler`] to do so.
-    pub fn handle(&self, req: &CallbackAPIRequest, api: Arc<Mutex<APIClient>>) {
+    pub fn handle(&self, req: &CallbackAPIRequest, api: &APIClient) {
         trace!("handling {:#?}", req);
 
         let event: Event = req.r#type().parse().expect("error while handling request");
@@ -482,7 +482,7 @@ mod tests {
     mod wiring {
         use super::*;
         use crate::request::Object;
-        use std::sync::mpsc;
+        use std::sync::{mpsc, Mutex};
 
         #[derive(Clone, Copy, PartialEq, Debug)]
         enum Wiring {
@@ -510,6 +510,8 @@ mod tests {
             let (tx, rx) = mpsc::sync_channel(1);
             let tx = Arc::new(Mutex::new(tx));
 
+            let api = APIClient::new("vk_token");
+
             let mut ctx = Context::new(
                 Event::MessageNew,
                 &CallbackAPIRequest::new(
@@ -518,7 +520,7 @@ mod tests {
                     &Event::MessageNew.to_string(),
                     obj,
                 ),
-                Arc::new(Mutex::new(APIClient::new("vk_token"))),
+                &api,
             );
 
             Core::new()

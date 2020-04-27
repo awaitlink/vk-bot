@@ -6,28 +6,27 @@ use crate::{
     response::Response,
 };
 use rvk::{error::Error, methods::messages, objects::Integer, APIClient, Params};
-use std::sync::{Arc, Mutex};
 
 /// Stores information necessary for handlers, allows to send the resulting
 /// message.
 #[derive(Debug)]
-pub struct Context {
+pub struct Context<'api> {
     group_id: i32,
     event: Event,
     object: Object,
-    api: Arc<Mutex<APIClient>>,
+    api: &'api APIClient,
     peer_id: Integer,
     response: Response,
 }
 
-impl Context {
+impl<'api> Context<'api> {
     /// Creates a new [`Context`].
     ///
     /// # Panics
     /// - no user_id on object (only [`Event::MessageAllow`])
     /// - no from_id on object ([`Event::MessageTypingState`])
     /// - no peer_id on object (other events)
-    pub fn new(event: Event, req: &CallbackAPIRequest, api: Arc<Mutex<APIClient>>) -> Self {
+    pub fn new(event: Event, req: &CallbackAPIRequest, api: &'api APIClient) -> Self {
         let object = req.object();
 
         let peer_id = match event {
@@ -66,10 +65,9 @@ impl Context {
         &self.object
     }
 
-    /// Returns an [`rvk::APIClient`], wrapped into
-    /// [`Arc`][`std::sync::Arc`]`<`[`Mutex`][`std::sync::Mutex`]`<...>>`.
-    pub fn api(&self) -> Arc<Mutex<APIClient>> {
-        Arc::clone(&self.api)
+    /// Returns the global [`rvk::APIClient`] which is used in this bot.
+    pub fn api(&self) -> &APIClient {
+        &self.api
     }
 
     /// Returns the current pending response object (mutable).
@@ -85,7 +83,6 @@ impl Context {
     /// so only one message is being sent at a given time. This behavior may
     /// change.
     pub fn send(&self) -> Result<(), Error> {
-        let api = self.api.lock().map_err(|e| Error::Other(e.to_string()))?;
         let mut params = Params::new();
 
         params.insert("peer_id".into(), format!("{}", self.peer_id));
@@ -121,6 +118,6 @@ impl Context {
 
         trace!("sending message {:#?}", params);
 
-        messages::send(&*api, params).map(|_| ())
+        messages::send(self.api, params).map(|_| ())
     }
 }

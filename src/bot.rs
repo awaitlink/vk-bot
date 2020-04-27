@@ -8,16 +8,15 @@ use rocket::{
 };
 use rocket_contrib::json::Json;
 use rvk::APIClient;
-use std::sync::{Arc, Mutex};
 
 /// The string `ok` which needs to be sent in response to every Callback API
 /// request.
 const VK_OK: &str = "ok";
 
 /// [`Bot`] represents a chat bot, and hands received requests to [`Core`].
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Bot {
-    api: Arc<Mutex<APIClient>>,
+    api: APIClient,
     confirmation_token: String,
     group_id: i32,
     secret: Option<String>,
@@ -37,7 +36,7 @@ impl Bot {
         core: Core,
     ) -> Self {
         Self {
-            api: Arc::new(Mutex::new(APIClient::new(vk_token))),
+            api: APIClient::new(vk_token),
             confirmation_token: confirmation_token.into(),
             group_id,
             secret,
@@ -71,9 +70,9 @@ impl Bot {
         panic!("{}", err);
     }
 
-    /// Returns the [`rvk::APIClient`] stored in this [`Bot`].
-    pub fn api(&self) -> Arc<Mutex<APIClient>> {
-        Arc::clone(&self.api)
+    /// Returns the global [`rvk::APIClient`] which is used in this [`Bot`].
+    pub fn api(&self) -> &APIClient {
+        &self.api
     }
 
     /// Returns the confirmation token stored in this [`Bot`].
