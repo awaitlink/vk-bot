@@ -11,7 +11,7 @@
 
 <sub>**`Cargo.toml`**</sub>
 ```toml
-vk-bot = "2.0"
+vk-bot = "3.0"
 ```
 
 [badges/version]: https://img.shields.io/crates/v/vk-bot.svg?style=for-the-badge
